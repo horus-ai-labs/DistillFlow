@@ -1,0 +1,56 @@
+student_model:
+#  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
+  model_name_or_path: Qwen/Qwen2-1.5B-Instruct
+  flash_attn: fa2
+  use_unsloth: false
+  output_attentions: false
+  enable_liger_kernel: true
+
+teacher_model:
+#  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
+  model_name_or_path: Qwen/Qwen2-0.5B
+  flash_attn: fa2
+  use_unsloth: false
+  output_attentions: false
+  enable_liger_kernel: true
+#  quantization_bit: 8
+#  quantization_method: gptq
+
+data:
+  seed: 42
+  text_field: "text"
+  train_datasets:
+    - path: mlabonne/FineTome-100k
+      template: sharegpt
+    - path: horus-ai-labs/WebInstructSub-150K
+      template: sharegpt
+  test_size: 0.1
+  streaming: false
+
+tokenizer:
+  template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
+distill:
+  type: logits
+  max_seq_length: 4096
+  sft_config:
+    output_dir: './results'
+    num_train_epochs: 3
+    per_device_train_batch_size: 1
+    per_device_eval_batch_size: 1
+    gradient_accumulation_steps: 8
+    eval_strategy: steps
+    eval_steps: 1000
+    save_steps: 1000
+    logging_steps: 1
+    learning_rate: 2.0e-5
+    weight_decay: 0.05
+    warmup_ratio: 0.1
+    lr_scheduler_type: 'cosine'
+    resume_from_checkpoint: null
+    fp16: false
+    bf16: true
+    max_grad_norm: 1.0
+  distillation_args:
+    temperature: 2.0
+    alpha: 0.5

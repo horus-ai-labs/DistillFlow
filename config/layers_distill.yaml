@@ -1,0 +1,59 @@
+student_model:
+  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
+#  model_name_or_path: Qwen/Qwen2-0.5B
+  flash_attn: fa2
+  use_unsloth: false
+  output_attentions: true
+#  enable_liger_kernel: true
+
+teacher_model:
+  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
+#  model_name_or_path: Qwen/Qwen2-1.5B
+  flash_attn: fa2
+  use_unsloth: false
+  output_attentions: true
+#  enable_liger_kernel: true
+#  quantization_bit: 8
+#  quantization_method: gptq
+
+data:
+  seed: 42
+  text_field: 'text'
+  train_datasets:
+    - path: mlabonne/FineTome-100k
+      template: sharegpt
+    - path: databricks/databricks-dolly-15k
+      template: alpaca
+      template_args:
+        prompt: instruction
+        query: context
+        response: response
+  test_size: 0.2
+  streaming: false
+
+tokenizer:
+  template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
+distill:
+  type: layers
+  max_seq_length: 4096
+  sft_config:
+    output_dir: './results'
+    num_train_epochs: 3
+    per_device_train_batch_size: 1
+    gradient_accumulation_steps: 8
+    save_steps: 1000
+     # max_steps: 15000, # need to specify with streaming enabled
+    logging_steps: 1
+    learning_rate: 2.0e-5
+    weight_decay: 0.05
+    warmup_ratio: 0.2
+    lr_scheduler_type: 'linear'
+    resume_from_checkpoint: None  # Set to a path or True to resume from the latest checkpoint
+    fp16: False
+    bf16: True
+    max_grad_norm: 1.0
+    group_by_length: False
+  distillation_args:
+    temperature: 2.0
+    alpha: 0.5
