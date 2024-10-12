@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "distillflow"
+version = "0.1.0"
+description = "A scalable framework for LLM distillation and fine-tuning"
+readme = "README.rst"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+requires-python = ">=3.7"
+dependencies = [
+    "torch>=1.9.0",
+    "transformers>=4.12.0",
+    "datasets>=2.1.0",
+    "scikit-learn",
+    "numpy",
+    "pandas",
+    "tqdm",
+    "huggingface-hub>=0.8.1"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/username/DistillFlow"
+"Documentation" = "https://distillflow.readthedocs.io"
