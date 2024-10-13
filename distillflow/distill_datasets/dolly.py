@@ -10,8 +10,11 @@ class Dolly(FlowDataset):
         return DollyData(split_datasets["train"]), DollyData(split_datasets["test"])
 
 class DollyData(FlowData):
+    def get_contexts(self):
+        return self.data['context']
+
     def get_prompts(self):
-        return [instruction + "\n\n" + context for instruction, context in zip(self.data['instruction'], self.data['context'])]
+        return self.data['instruction']
 
     def get_responses(self):
         return self.data['response']

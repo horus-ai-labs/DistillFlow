@@ -1,6 +1,6 @@
 import anthropic
 import os
-from . import TeacherModel
+from .teacher import TeacherModel
 
 class AnthropicTeacher(TeacherModel):
     """

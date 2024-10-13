@@ -1,5 +1,6 @@
 import pandas as pd
-from distillflow.student.sft import SFTStudent
+
+from distillflow.distill import Distiller
 from distillflow.teacher import TeacherModel
 from distillflow.distill_datasets import FlowDataset, FlowData
 from datasets import Dataset
@@ -8,9 +9,9 @@ class DistillFlow:
     """
     Main class to handle the distillation pipeline using Accelerate.
     """
-    def __init__(self, teacher_model: TeacherModel, student_model: SFTStudent, distill_dataset: FlowDataset):
+    def __init__(self, teacher_model: TeacherModel, distiller: Distiller, distill_dataset: FlowDataset):
         self.teacher_model = teacher_model
-        self.student_model = student_model
+        self.distiller = distiller
         self.dataset = distill_dataset
         self.train_dataset: FlowData
         self.test_dataset: FlowData
@@ -26,9 +27,13 @@ class DistillFlow:
         """
         print("Collecting responses using the teacher model...")
         responses = []
+        contexts = self.train_dataset.get_contexts()
         prompts = self.train_dataset.get_prompts()
-        for prompt, response in zip(enumerate(prompts), enumerate(self.train_dataset.get_responses())):
-            responses.append({"prompt": prompt, "response": response})
+        for context, prompt, response in zip(contexts, prompts, self.train_dataset.get_responses()):
+            if context is None or context == '':
+                context = "No context"
+
+            responses.append({"context": context, "prompt": prompt, "response": response})
         # for i, prompt in enumerate(prompts):
         #     print(f"Generating response for prompt {i+1}/{len(self.train_dataset)}")
         #     response = self.teacher_model.generate_response(prompt)
@@ -49,7 +54,7 @@ class DistillFlow:
         print("Loading collected responses...")
         df = pd.read_csv(data_file)
         dataset = Dataset.from_pandas(df)
+        print(f"Dataset is: {dataset}")
 
-        print(f"Fine-tuning student model {self.student_model.model_name}...")
-        self.student_model.fine_tune(train_dataset=dataset, output_dir=output_dir)
+        self.distiller.fine_tune(dataset=dataset, output_dir=output_dir)
         print(f"Student model fine-tuned and saved to {output_dir}")

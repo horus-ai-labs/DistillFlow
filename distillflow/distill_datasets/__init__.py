@@ -2,6 +2,9 @@ class FlowData:
     def __init__(self, data):
         self.data = data
 
+    def get_contexts(self):
+        raise NotImplementedError("Data must implement the get_context method.")
+
     def get_prompts(self):
         raise NotImplementedError("Data must implement the get_prompt method.")
 
