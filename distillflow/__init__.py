@@ -26,13 +26,10 @@ class DistillFlow:
         """
         print("Collecting responses using the teacher model...")
         responses = []
-        prompts = self.train_dataset.get_prompts
-        responses = self.test_dataset.get_responses
+        prompts = self.train_dataset.get_prompts()
+        for prompt, response in zip(enumerate(prompts), enumerate(self.train_dataset.get_responses())):
+            responses.append({"prompt": prompt, "response": response})
         # for i, prompt in enumerate(prompts):
-        #     if i > 1:
-        #         break
-        #     print(f"Prompt: {prompt}")
-        #
         #     print(f"Generating response for prompt {i+1}/{len(self.train_dataset)}")
         #     response = self.teacher_model.generate_response(prompt)
         #     responses.append({"prompt": prompt, "response": response})
