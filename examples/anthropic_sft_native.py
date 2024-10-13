@@ -7,14 +7,14 @@ from distillflow import DistillFlow
 from distillflow.teacher.anthropic import AnthropicTeacher
 from distillflow.distill_datasets.dolly import Dolly
 from distillflow.evaluation.rouge import compute_rouge_scores
-from distillflow.student.distillbert import DistillBert
-from distillflow.distill.sft import SFTWithoutKD
-
+from distillflow.student.qwen import Qwen
+from distillflow.distill.sft_native import SFT
+import pandas as pd
 def main():
     teacher_model = AnthropicTeacher()  # Or use any lightweight teacher model.
-    student_model = DistillBert()
+    student_model = Qwen()
     dataset = Dolly()
-    distiller = SFTWithoutKD(student_model)
+    distiller = SFT(student_model)
 
     pipeline = DistillFlow(teacher_model=teacher_model, distiller=distiller, distill_dataset=dataset)
 
