@@ -12,7 +12,7 @@ def main():
     student_model = SFTStudent(model_name='distilgpt2')  # Lightweight model for fast testing.
     dataset = Dolly()
 
-    pipeline = DistillFlow(teacher_model=teacher_model, student_model=student_model, train_dataset=dataset)
+    pipeline = DistillFlow(teacher_model=teacher_model, student_model=student_model, distill_dataset=dataset)
 
     pipeline.prepare_data()
     pipeline.collect_responses(output_file="anthropic_responses.csv")

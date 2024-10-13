@@ -1,22 +1,22 @@
 import pandas as pd
 from distillflow.student.sft import SFTStudent
 from distillflow.teacher import TeacherModel
-from distillflow.distill_datasets import TrainDataset
+from distillflow.distill_datasets import FlowDataset, FlowData
 from datasets import Dataset
 
 class DistillFlow:
     """
     Main class to handle the distillation pipeline using Accelerate.
     """
-    def __init__(self, teacher_model: TeacherModel, student_model: SFTStudent, train_dataset: Dataset):
+    def __init__(self, teacher_model: TeacherModel, student_model: SFTStudent, distill_dataset: FlowDataset):
         self.teacher_model = teacher_model
         self.student_model = student_model
-        self.dataset = train_dataset
-        self.train_dataset = None
+        self.dataset = distill_dataset
+        self.train_dataset: FlowData
+        self.test_dataset: FlowData
 
     def prepare_data(self):
-        self.dataset.prepare_data()
-        self.train_dataset = self.dataset.get_prompts()
+        self.train_dataset, self.test_dataset = self.dataset.prepare_data()
 
     def collect_responses(self, output_file="responses.csv"):
         """
@@ -26,14 +26,16 @@ class DistillFlow:
         """
         print("Collecting responses using the teacher model...")
         responses = []
-        for i, prompt in enumerate(self.train_dataset):
-            if i > 1:
-                break
-            print(f"Prompt: {prompt}")
-
-            print(f"Generating response for prompt {i+1}/{len(self.train_dataset)}")
-            response = self.teacher_model.generate_response(prompt)
-            responses.append({"prompt": prompt, "response": response})
+        prompts = self.train_dataset.get_prompts
+        responses = self.test_dataset.get_responses
+        # for i, prompt in enumerate(prompts):
+        #     if i > 1:
+        #         break
+        #     print(f"Prompt: {prompt}")
+        #
+        #     print(f"Generating response for prompt {i+1}/{len(self.train_dataset)}")
+        #     response = self.teacher_model.generate_response(prompt)
+        #     responses.append({"prompt": prompt, "response": response})
 
         df = pd.DataFrame(responses)
         df.to_csv(output_file, index=False)
