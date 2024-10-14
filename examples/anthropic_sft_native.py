@@ -21,7 +21,7 @@ def main():
     # pipeline.prepare_data()
     # pipeline.collect_responses(output_file="anthropic_responses.csv")
     #
-    pipeline.train_student_model(data_file="anthropic_responses.csv", output_dir="./sft_output_test")
+    pipeline.train_student_model(output_dir="./sft_native_output_test")
     # validation outputs
 
     # pipeline.infer("", "")

@@ -58,7 +58,7 @@ class SFTWithoutKD(Distiller):
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         return train_dataloader
 
-    def fine_tune(self, dataset, output_dir='./sft_output', epochs=1, learning_rate=1e-4):
+    def fine_tune(self, dataset, output_dir='./sft_output', epochs=3, learning_rate=1e-4):
         """
         Fine-tune the student model using the provided training dataset with Accelerate.
         Args:
@@ -89,8 +89,6 @@ class SFTWithoutKD(Distiller):
         for epoch in range(epochs):
             self.student.model.train()
             for step, batch in enumerate(train_dataloader):
-                if (step > 100):
-                    break
                 batch = {k: torch.tensor(v) if isinstance(v, list) else v for k, v in batch.items()}
 
                 # Move batch to the correct device (accelerator handles this)

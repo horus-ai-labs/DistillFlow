@@ -13,32 +13,15 @@ from distillflow.student.distillbert import DistillBert
 from trl import SFTTrainer
 from transformers import TrainingArguments
 class SFT(Distiller):
-    def __init__(self, student_model=DistillBert(), device='cuda' if torch.cuda.is_available() else 'cpu'):
+    def __init__(self, student_model=DistillBert()):
         """
         Initialize the student model.
         Args:
             model_name: Name of the pre-trained student model.
             device: Device to run the model on, defaults to GPU if available.
         """
-        self.device = device
-        self.student = student_model
+        super().__init__(student_model)
         # self.accelerator = Accelerator()
-
-    def prepare_dataloader(self, train_dataset, batch_size=4):
-        """
-        Prepares a PyTorch DataLoader for training.
-        Args:
-            train_dataset: The training dataset.
-            batch_size: Batch size for training.
-        """
-        train_dataset = train_dataset.map(self.student.encode, batched=True)
-        # use tokenizer
-
-        # train_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions'])
-
-        # print(f"Training Dataset: {train_dataset}")
-        # train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        return train_dataset
 
     def fine_tune(self, dataset, output_dir='./outputs', epochs=3, learning_rate=1e-4):
         """

@@ -9,7 +9,7 @@ class Qwen(Student):
         self.model_name= model_name
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
-            torch_dtype="auto",
+            torch_dtype=torch.float16,
             device_map="auto"
         )
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)

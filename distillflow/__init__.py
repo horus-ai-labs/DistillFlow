@@ -52,6 +52,8 @@ class DistillFlow:
         """
         if self.distiller.device == 'cpu':
             print("GPU is not available. Will use CPU...")
+        else:
+            print("Using GPUs...")
         print("Loading collected responses...")
         print(f"Dataset used for training {self.train_response}")
 
