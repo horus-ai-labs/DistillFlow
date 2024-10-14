@@ -1,7 +1,7 @@
-from transformers import AutoModelForQuestionAnswering, AutoTokenizer
+from transformers import AutoModelForQuestionAnswering, AutoTokenizer, BatchEncoding
 import torch
 from distillflow.student import Student
-
+import difflib
 
 class DistillBert(Student):
     def __init__(self):
@@ -20,62 +20,79 @@ class DistillBert(Student):
     #     return model_inputs
 
 
-    def encode(self, batch):
-        inputs = batch["context"]
-        questions = batch["prompt"]
-        answers = batch["response"]
+    def find_best_token_match(self, input_ids, answer_token_ids):
+        """Find the best matching span of tokens using approximate matching."""
+        input_str = " ".join(map(str, input_ids))
+        answer_str = " ".join(map(str, answer_token_ids))
 
-        # Filter out examples where context or question is empty
-        valid_contexts = []
-        valid_questions = []
-        valid_answers = []
+        matcher = difflib.SequenceMatcher(None, input_str, answer_str)
+        match = matcher.find_longest_match(0, len(input_str), 0, len(answer_str))
 
-        for context, question, answer in zip(inputs, questions, answers):
-            # Skip examples with empty context or question
-            if context and question:
-                valid_contexts.append(context)
-                valid_questions.append(question)
-                # Ensure answer is properly formatted, extracting the first answer if it's a list of dicts
-                if isinstance(answer, list) and len(answer) > 0 and 'text' in answer[0]:
-                    valid_answers.append(answer[0]["text"])
-                else:
-                    valid_answers.append("")  # Default if answer is not well-formed
+        if match.size > 0:
+            start = match.a // len(answer_str.split())
+            return start, start + len(answer_token_ids) - 1
+        return None, None
+
+
+    def encode(self, batch) -> BatchEncoding:
+        questions = batch['prompt']
+        contexts = batch['context']
+        answers = batch['response']
 
         # Tokenize inputs (context and questions)
         inputs = self.tokenizer(
-            valid_questions,
-            valid_contexts,
+            questions,
+            contexts,
             max_length=512,
             truncation=True,
+            # stride=128,
+            # return_overflowing_tokens=True,
+            # return_offsets_mapping=True,
             padding="max_length",
             return_tensors="pt"
         )
 
+        print(f"batch size: {len(contexts)}: {len(questions)}: {len(answers)}: {len(inputs)}")
+
         # Initialize start and end positions with the same batch size as inputs
-        batch_size = len(valid_contexts)
+        batch_size = len(questions)
         start_positions = torch.zeros(batch_size, dtype=torch.long)
         end_positions = torch.zeros(batch_size, dtype=torch.long)
 
-        for i, answer_text in enumerate(valid_answers):
-            if answer_text:  # Only process non-empty answers
-                try:
-                    # Tokenize the answer to find its position in the context
-                    answer_token_ids = self.tokenizer(answer_text)["input_ids"]
+        for i, answer_text in enumerate(answers):
+            input_ids = inputs["input_ids"][i]
 
-                    # Find start position of the answer in the tokenized context
-                    start_pos = inputs["input_ids"][i].tolist().index(answer_token_ids[1])
-                    end_pos = start_pos + len(answer_token_ids) - 2  # Exclude [CLS] and [SEP] tokens
+            if len(input_ids) > 512:
+                input_ids = input_ids[:512]
+                inputs["input_ids"][i] = input_ids
 
-                    start_positions[i] = start_pos
-                    end_positions[i] = end_pos
-                except (ValueError, IndexError):
+            # Tokenize the answer to find its position in the context
+            answer_token_ids = self.tokenizer(answer_text)["input_ids"]
+
+            # Find start position of the answer in the tokenized context
+            start_pos, end_pos = self.find_best_token_match(input_ids, answer_token_ids)
+            if start_pos is None or end_pos is None:
+                # try:
+                #     start_pos = inputs["input_ids"][i].tolist().index(answer_token_ids[1])
+                #     end_pos = start_pos + len(answer_token_ids) - 2
+                # except ValueError as e:
+                #     print(e)
+                    # print(f"ValueError for answer_text: {answer_text}, {contexts[i]}, {questions[i]}")
                     # Handle cases where the answer is not found in the context
-                    start_positions[i] = 0
-                    end_positions[i] = 0
+                start_pos = 0
+                end_pos = 0
+
+                    # print(f"start and end not found: {answer_text}: {valid_contexts[i]}\n\n")
+                    # start_pos, end_pos = 0, 0
+
+            start_positions[i] = start_pos
+            end_positions[i] = end_pos
 
         inputs["start_positions"] = torch.tensor(start_positions)
         inputs["end_positions"] = torch.tensor(end_positions)
 
+        print(inputs['input_ids'].shape)
+        print(inputs['start_positions'].shape)
         return inputs
 
     def forward_pass(self, batch):

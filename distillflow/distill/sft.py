@@ -1,24 +1,25 @@
 import torch
 from datasets import load_dataset
 from torch.utils.data import DataLoader
+from datasets import Dataset
+
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import get_linear_schedule_with_warmup
 # from trl import SFTTrainer
 from accelerate import Accelerator
 
 from distillflow.distill.distiller import Distiller
-from distillflow.student.distillbert import DistillBert
+from distillflow.student import Student
 
 class SFTWithoutKD(Distiller):
-    def __init__(self, student_model=DistillBert(), device='cuda' if torch.cuda.is_available() else 'cpu'):
+    def __init__(self, student_model: Student):
         """
         Initialize the student model.
         Args:
             model_name: Name of the pre-trained student model.
             device: Device to run the model on, defaults to GPU if available.
         """
-        self.device = device
-        self.student = student_model
+        super().__init__(student_model)
         self.accelerator = Accelerator()
 
     def prepare_dataloader(self, train_dataset, batch_size=4):
@@ -28,6 +29,28 @@ class SFTWithoutKD(Distiller):
             train_dataset: The training dataset.
             batch_size: Batch size for training.
         """
+
+        questions = train_dataset['prompt']
+        contexts = train_dataset['context']
+        answers = train_dataset['response']
+
+        # Filter out examples where context or question is empty
+        valid_contexts = []
+        valid_questions = []
+        valid_answers = []
+
+        for question, context, answer in zip(questions, contexts, answers):
+            # Skip examples with empty context or question
+            if question and context:
+                valid_contexts.append(context)
+                valid_questions.append(question)
+                valid_answers.append(answer)
+
+        train_dataset = Dataset.from_dict({
+            "prompt": valid_questions,
+            "context": valid_contexts,
+            "response": valid_answers,
+        })
         train_dataset = train_dataset.map(self.student.encode, batched=True)
         train_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions'])
 
@@ -35,7 +58,7 @@ class SFTWithoutKD(Distiller):
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         return train_dataloader
 
-    def fine_tune(self, dataset, output_dir='./sft_output', epochs=3, learning_rate=1e-4):
+    def fine_tune(self, dataset, output_dir='./sft_output', epochs=1, learning_rate=1e-4):
         """
         Fine-tune the student model using the provided training dataset with Accelerate.
         Args:
@@ -66,6 +89,8 @@ class SFTWithoutKD(Distiller):
         for epoch in range(epochs):
             self.student.model.train()
             for step, batch in enumerate(train_dataloader):
+                if (step > 100):
+                    break
                 batch = {k: torch.tensor(v) if isinstance(v, list) else v for k, v in batch.items()}
 
                 # Move batch to the correct device (accelerator handles this)

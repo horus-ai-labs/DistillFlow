@@ -1,6 +1,7 @@
 {
-  "bos_token": "<|endoftext|>",
-  "eos_token": "<|endoftext|>",
-  "pad_token": "<|endoftext|>",
-  "unk_token": "<|endoftext|>"
+  "cls_token": "[CLS]",
+  "mask_token": "[MASK]",
+  "pad_token": "[PAD]",
+  "sep_token": "[SEP]",
+  "unk_token": "[UNK]"
 }

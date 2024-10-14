@@ -52,6 +52,8 @@ class SFT(Distiller):
         # Prepare DataLoader
         print(f"Fine-tuning student model {self.student.model_name}...")
 
+        dataset = dataset.map(self.student.encode, batched=True)
+
         print(dataset)
 
         trainer = SFTTrainer(

@@ -15,7 +15,7 @@ class AnthropicTeacher(TeacherModel):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self.client = anthropic.Anthropic(api_key=self.api_key)
 
-    def generate_response(self, prompt, max_tokens=150):
+    def generate_response(self, context, prompt, max_tokens=150):
         """
         Generate a response using the Anthropic model.
         Args:

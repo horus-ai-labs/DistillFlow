@@ -3,76 +3,64 @@ import pandas as pd
 from distillflow.distill import Distiller
 from distillflow.teacher import TeacherModel
 from datasets import Dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-import torch
+from distillflow.distill_datasets import DistillDataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 class DistillFlow:
     """
     Main class to handle the distillation pipeline using Accelerate.
     """
-    def __init__(self, teacher_model: TeacherModel, distiller: Distiller, distill_dataset: Dataset):
+    def __init__(self, teacher_model: TeacherModel, distiller: Distiller, distill_dataset: DistillDataset):
         self.teacher_model = teacher_model
         self.distiller = distiller
         self.dataset = distill_dataset
-        # self.train_dataset: FlowData
-        # self.test_dataset: FlowData
+        self.train_dataset = Dataset.from_dict({})
+        self.test_dataset = Dataset.from_dict({})
+        self.train_response = Dataset.from_dict({})
 
         # call it here. Write code to support and merge multiple datasets.
         self.prepare_data()
 
     def prepare_data(self):
         self.train_dataset, self.test_dataset = self.dataset.prepare_data()
-        self.train_dataset = self.train_dataset.map(self.distiller.student.encode, batched=True)
-        self.test_dataset = self.test_dataset.map(self.distiller.student.encode, batched=True)
+        # For the time being, write to train dataset to train response
+        self.collect_responses()
 
-
-    def collect_responses(self, output_file="responses.csv"):
+    def collect_responses(self):
         """
         Use the teacher model to collect responses for the dataset.
-        Args:
-            output_file: CSV file to save the prompts and responses.
         """
         print("Collecting responses using the teacher model...")
-        responses = []
-        contexts = self.train_dataset.get_contexts()
-        prompts = self.train_dataset.get_prompts()
-        for context, prompt, response in zip(contexts, prompts, self.train_dataset.get_responses()):
-            if context is None or context == '':
-                context = "No context"
+        contexts = self.train_dataset['context']
+        prompts = self.train_dataset['prompt']
+        responses = self.train_dataset['response']
 
-            responses.append({"context": context, "prompt": prompt, "response": response})
-        # for i, prompt in enumerate(prompts):
-        #     print(f"Generating response for prompt {i+1}/{len(self.train_dataset)}")
-        #     response = self.teacher_model.generate_response(prompt)
-        #     responses.append({"prompt": prompt, "response": response})
+        # TODO: use the below response generated from teacher instead
+        # for context, prompt in zip(contexts, prompts):
+            # response = self.teacher_model.generate_response(context, prompt)
+        self.train_response = Dataset.from_dict({
+            "prompt": prompts,
+            "context": contexts,
+            "response": responses,
+        })
 
-        df = pd.DataFrame(responses)
-        df.to_csv(output_file, index=False)
-        print(f"Saved responses to {output_file}")
-        return output_file
-
-    def train_student_model(self, data_file="responses.csv", output_dir='./sft_output'):
+    def train_student_model(self, output_dir='./sft_output'):
         """
         Fine-tune the student model using collected responses.
         Args:
-            data_file: CSV file containing prompts and responses.
             output_dir: Directory to save the fine-tuned model.
         """
-        # print("Loading collected responses...")
-        # df = pd.read_csv(data_file)
-        # dataset = Dataset.from_pandas(df)
-        # print(f"Dataset is: {dataset}")
+        if self.distiller.device == 'cpu':
+            print("GPU is not available. Will use CPU...")
+        print("Loading collected responses...")
+        print(f"Dataset used for training {self.train_response}")
 
-        train_dataset = self.train_dataset
-
-        self.distiller.fine_tune(dataset=train_dataset, output_dir=output_dir)
+        self.distiller.fine_tune(dataset=self.train_response, output_dir=output_dir)
         print(f"Student model fine-tuned and saved to {output_dir}")
 
     def infer(self, data_file, model_directory):
-        from transformers import AutoModel, AutoTokenizer
         # model = AutoModel.from_pretrained(model_directory)
         # tokenizer = AutoTokenizer.from_pretrained(model_directory)
-        import pandas as pd
 
         df = pd.read_csv("/Users/aayushgupta/dev/DistillFlow/examples/anthropic_responses.csv")
         dataset = Dataset.from_pandas(df)
