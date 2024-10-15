@@ -23,9 +23,11 @@ def main():
     #
     pipeline.train_student_model(output_dir="./sft_native_output_test")
     # validation outputs
-
-    # pipeline.infer("", "")
-
+    # parse data from test_dataset
+    for idx, data in enumerate(pipeline.test_dataset):
+        print(data.keys())
+        print(pipeline.infer(data))
+        break
 
     # compute_rouge_scores(reference_file, generated_file)
 
