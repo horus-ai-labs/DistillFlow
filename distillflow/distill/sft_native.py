@@ -48,7 +48,7 @@ class SFT(Distiller):
             dataset_num_proc=2,
             packing=False,  # Can make training 5x faster for short sequences.
             args=TrainingArguments(
-                per_device_train_batch_size=2,
+                per_device_train_batch_size=1,
                 gradient_accumulation_steps=4,
                 warmup_steps=5,
                 # num_train_epochs = 1, # Set this for 1 full training run.

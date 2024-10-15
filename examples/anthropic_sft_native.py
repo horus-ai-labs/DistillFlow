@@ -25,9 +25,11 @@ def main():
     # validation outputs
     # parse data from test_dataset
     for idx, data in enumerate(pipeline.test_dataset):
+        if idx>5:
+            break
         print(data.keys())
         print(pipeline.infer(data))
-        break
+
 
     # compute_rouge_scores(reference_file, generated_file)
 

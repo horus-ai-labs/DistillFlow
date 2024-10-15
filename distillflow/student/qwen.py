@@ -11,16 +11,32 @@ class Qwen(Student):
 
         if self.model_path:
             self.model = AutoModelForCausalLM.from_pretrained(self.model_path,
-                torch_dtype="auto",
+                # torch_dtype="auto",
                 device_map="auto"
             )
 
         else:
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
-                torch_dtype="auto",
+                # torch_dtype="auto",
                 device_map="auto"
             )
+
+        from peft import LoftQConfig, LoraConfig, get_peft_model
+
+        self.lora_config = LoraConfig(r=64, lora_alpha=16, lora_dropout=0.05,
+                                      target_modules=[
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "up_proj",
+            "gate_proj",
+            "down_proj",
+        ],
+        bias='none')
+
+        self.model = get_peft_model(self.model, self.lora_config)
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
