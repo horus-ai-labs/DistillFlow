@@ -44,7 +44,7 @@ class SFT(Distiller):
             tokenizer=self.student.tokenizer,
             train_dataset=dataset,
             dataset_text_field="text",
-            max_seq_length= 2048,
+            max_seq_length= 1024,
             dataset_num_proc=2,
             packing=False,  # Can make training 5x faster for short sequences.
             args=TrainingArguments(
@@ -52,7 +52,7 @@ class SFT(Distiller):
                 gradient_accumulation_steps=4,
                 warmup_steps=5,
                 # num_train_epochs = 1, # Set this for 1 full training run.
-                max_steps=60,
+                max_steps=30,
                 learning_rate=2e-4,
                 # fp16=True,
                 # bf16=is_bfloat16_supported(),
@@ -68,7 +68,7 @@ class SFT(Distiller):
         trainer_stats = trainer.train()
 
         #Save models
-        self.student.save_pretrained(output_dir)
+        self.student.model.save_pretrained(output_dir)
         self.student.tokenizer.save_pretrained(output_dir)
 
 

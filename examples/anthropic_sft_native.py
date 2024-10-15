@@ -2,6 +2,7 @@ import sys
 
 sys.path.append('../')
 # sys.path.append('../src')
+from torch import mps
 
 from distillflow import DistillFlow
 from distillflow.teacher.anthropic import AnthropicTeacher
@@ -11,6 +12,7 @@ from distillflow.student.qwen import Qwen
 from distillflow.distill.sft_native import SFT
 import pandas as pd
 def main():
+    mps.empty_cache()
     teacher_model = AnthropicTeacher()  # Or use any lightweight teacher model.
     student_model = Qwen()
     dataset = Dolly()
