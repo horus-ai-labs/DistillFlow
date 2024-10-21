@@ -26,7 +26,7 @@ def main():
     tokenizer_module = load_tokenizer(model_args)
     tokenizer = tokenizer_module["tokenizer"]
     # dataset_module = get_dataset(template, model_args, data_args, training_args, stage="rm", **tokenizer_module)
-    model = load_model(tokenizer, model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
+    model = load_model(tokenizer, model_args, finetuning_args=FinetuningArguments(finetuning_type="full"), is_trainable=True)
 
     # train_args = dict(
     #     model_name_or_path="unsloth/Llama-3.2-1B-Instruct",

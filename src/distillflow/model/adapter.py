@@ -13,6 +13,8 @@ from .unsloth import get_unsloth_peft_model, load_unsloth_peft_model
 
 from transformers import PretrainedConfig, PreTrainedModel
 
+from ..misc import find_all_linear_modules
+
 logger = get_logger(__name__)
 
 
@@ -113,13 +115,13 @@ def _setup_freeze_tuning(
 
 
 def _setup_lora_tuning(
-        config: "PretrainedConfig",
-        model: "PreTrainedModel",
+        config: PretrainedConfig,
+        model: PreTrainedModel,
         model_args: ModelArguments,
-        finetuning_args: "FinetuningArguments",
+        finetuning_args: FinetuningArguments,
         is_trainable: bool,
         cast_trainable_params_to_fp32: bool,
-) -> "PeftModel":
+) -> PeftModel:
     if is_trainable:
         logger.info("Fine-tuning method: {}".format("DoRA" if finetuning_args.use_dora else "LoRA"))
 
@@ -169,10 +171,10 @@ def _setup_lora_tuning(
         logger.info("Loaded adapter(s): {}".format(",".join(model_args.adapter_name_or_path)))
 
     if is_trainable and adapter_to_resume is None:  # create new lora weights while training
-        # if len(finetuning_args.lora_target) == 1 and finetuning_args.lora_target[0] == "all":
-        #     target_modules = find_all_linear_modules(model, finetuning_args.freeze_vision_tower)
-        # else:
-        target_modules = finetuning_args.lora_target
+        if len(finetuning_args.lora_target) == 1 and finetuning_args.lora_target[0] == "all":
+            target_modules = find_all_linear_modules(model, finetuning_args.freeze_vision_tower)
+        else:
+            target_modules = finetuning_args.lora_target
 
         # if finetuning_args.use_llama_pro:
         #     target_modules = find_expanded_modules(model, target_modules, finetuning_args.freeze_trainable_layers)

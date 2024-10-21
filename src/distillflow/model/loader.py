@@ -1,7 +1,7 @@
 from typing import TypedDict, Optional, Dict, Any
 
 from transformers import PreTrainedTokenizer, ProcessorMixin, AutoConfig, AutoTokenizer, AutoProcessor, PreTrainedModel, \
-    PretrainedConfig
+    PretrainedConfig, AutoModelForCausalLM
 
 from .adapter import init_adapter
 from .finetuning_args import FinetuningArguments
@@ -118,9 +118,10 @@ def load_model(
         elif is_trainable:
             model = load_unsloth_pretrained_model(config, model_args)
 
-    # if model is None and not lazy_load:
-    #     init_kwargs["config"] = config
-    #     init_kwargs["pretrained_model_name_or_path"] = model_args.model_name_or_path
+    if model is None and not lazy_load:
+        init_kwargs["config"] = config
+        init_kwargs["pretrained_model_name_or_path"] = model_args.model_name_or_path
+        model = AutoModelForCausalLM.from_pretrained(**init_kwargs)
 
     if not lazy_load:
         # patch_model(model, tokenizer, model_args, is_trainable, add_valuehead)
