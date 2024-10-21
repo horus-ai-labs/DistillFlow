@@ -53,7 +53,7 @@ class DistillFlow:
         print("Loading collected responses...")
         print(f"Dataset used for training {self.train_response}")
 
-        load_model()
+        # load_model()
         self.distiller.fine_tune(dataset=self.train_response, output_dir=output_dir)
         print(f"Student model fine-tuned and saved to {output_dir}")
 

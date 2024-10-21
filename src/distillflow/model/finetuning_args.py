@@ -159,11 +159,11 @@ class FinetuningArguments(FreezeArguments, LoraArguments):
                 return [item.strip() for item in arg.split(",")]
             return arg
 
-        # self.freeze_trainable_modules: List[str] = split_arg(self.freeze_trainable_modules)
-        # self.freeze_extra_modules: Optional[List[str]] = split_arg(self.freeze_extra_modules)
-        # self.lora_alpha: int = self.lora_alpha or self.lora_rank * 2
-        # self.lora_target: List[str] = split_arg(self.lora_target)
-        # self.additional_target: Optional[List[str]] = split_arg(self.additional_target)
+        self.freeze_trainable_modules: List[str] = split_arg(self.freeze_trainable_modules)
+        self.freeze_extra_modules: Optional[List[str]] = split_arg(self.freeze_extra_modules)
+        self.lora_alpha: int = self.lora_alpha or self.lora_rank * 2
+        self.lora_target: List[str] = split_arg(self.lora_target)
+        self.additional_target: Optional[List[str]] = split_arg(self.additional_target)
         # self.galore_target: List[str] = split_arg(self.galore_target)
         self.freeze_vision_tower = self.freeze_vision_tower or self.train_mm_proj_only
         # self.use_ref_model = self.stage == "dpo" and self.pref_loss not in ["orpo", "simpo"]

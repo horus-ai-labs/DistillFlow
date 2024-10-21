@@ -26,7 +26,7 @@ def main():
     tokenizer_module = load_tokenizer(model_args)
     tokenizer = tokenizer_module["tokenizer"]
     # dataset_module = get_dataset(template, model_args, data_args, training_args, stage="rm", **tokenizer_module)
-    model = load_model(tokenizer, model_args, finetuning_args=FinetuningArguments(finetuning_type="full"), is_trainable=True)
+    model = load_model(tokenizer, model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
 
     # train_args = dict(
     #     model_name_or_path="unsloth/Llama-3.2-1B-Instruct",
@@ -70,9 +70,9 @@ def main():
     # evaluator = Evaluator(args=evaluator_args)
     # evaluator.eval()
 
-    distiller = SFT(student_model)
+    # distiller = SFT(student_model)
     #
-    pipeline = DistillFlow(teacher_model=teacher_model, distiller=distiller, distill_dataset=dataset)
+    # pipeline = DistillFlow(teacher_model=teacher_model, distiller=distiller, distill_dataset=dataset)
 
     # pipeline.prepare_data()
     # pipeline.collect_responses(output_file="anthropic_responses.csv")
@@ -81,11 +81,11 @@ def main():
 
     # validation outputs
 
-    for idx, data in enumerate(pipeline.test_dataset):
-        if idx>5:
-            break
-        # print(data.keys())
-        print(pipeline.infer(data))
+    # for idx, data in enumerate(pipeline.test_dataset):
+    #     if idx>5:
+    #         break
+    #     # print(data.keys())
+    #     print(pipeline.infer(data))
 
     # compute_rouge_scores(reference_file, generated_file)
 
