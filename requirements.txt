@@ -7,6 +7,7 @@ anthropic==0.35.0
 anyio==4.6.0
 async-timeout==4.0.3
 attrs==24.2.0
+bitsandbytes==0.42.0
 certifi==2024.8.30
 charset-normalizer==3.3.2
 datasets==3.0.1
@@ -61,6 +62,7 @@ trl==0.11.3
 typing_extensions==4.12.2
 tyro==0.8.12
 tzdata==2024.2
+unsloth==2024.8
 urllib3==2.2.3
 xxhash==3.5.0
 yarl==1.13.1
