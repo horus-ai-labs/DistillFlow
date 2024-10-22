@@ -21,7 +21,8 @@ def main():
 
     model_args = ModelArguments(
         model_name_or_path="meta-llama/Llama-3.2-1B-Instruct",
-        # use_unsloth=True
+        # quantization_bit=8,
+        # quantization_method="gptq"
     )
     tokenizer_module = load_tokenizer(model_args)
     tokenizer = tokenizer_module["tokenizer"]

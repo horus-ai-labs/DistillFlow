@@ -1,10 +1,13 @@
 from typing import TypedDict, Optional, Dict, Any
 
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+# from auto_gptq import AutoGPTQForCausalLM
 from transformers import PreTrainedTokenizer, ProcessorMixin, AutoConfig, AutoTokenizer, AutoProcessor, PreTrainedModel, \
-    PretrainedConfig, AutoModelForCausalLM
+    PretrainedConfig, AutoModelForCausalLM, GPTQConfig
 
 from .adapter import init_adapter
 from .finetuning_args import FinetuningArguments
+from .quantization import configure_quantization, QuantizationMethod
 from .unsloth import load_unsloth_pretrained_model
 from ..misc.logger import get_logger
 from .args import ModelArguments
@@ -105,6 +108,7 @@ def load_model(
     """
     init_kwargs = _get_init_kwargs(model_args)
     config = AutoConfig.from_pretrained(model_args.model_name_or_path, **init_kwargs)
+    configure_quantization(config, tokenizer, model_args, init_kwargs)
     # patch_config(config, tokenizer, model_args, init_kwargs, is_trainable)
 
     # TODO: Good optimization for huggingface models: https://github.com/linkedin/Liger-Kernel
@@ -117,6 +121,14 @@ def load_model(
             lazy_load = True
         elif is_trainable:
             model = load_unsloth_pretrained_model(config, model_args)
+
+    if model_args.quantization_method == QuantizationMethod.GPTQ.value:
+        quantize_config = BaseQuantizeConfig(
+            bits=model_args.quantization_bit,
+            group_size=128,       # Group size (optional, can be None)
+            desc_act=False        # Disable activation descriptor (optional)
+        )
+        model = AutoGPTQForCausalLM.from_pretrained(model_args.model_name_or_path, bits=model_args.quantization_bit, group_size=128, quantize_config=quantize_config)
 
     if model is None and not lazy_load:
         init_kwargs["config"] = config
