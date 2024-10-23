@@ -14,6 +14,8 @@ from ..misc import count_parameters
 
 logger = get_logger(__name__)
 
+
+#TODO: Patch model and tokenizer has been removed for now.
 def _get_init_kwargs(model_args: ModelArguments) -> Dict[str, Any]:
     r"""
     Gets arguments to load config/tokenizer/model.

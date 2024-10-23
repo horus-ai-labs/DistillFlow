@@ -176,6 +176,8 @@ def _setup_lora_tuning(
         else:
             target_modules = finetuning_args.lora_target
 
+        print(target_modules)
+
         # if finetuning_args.use_llama_pro:
         #     target_modules = find_expanded_modules(model, target_modules, finetuning_args.freeze_trainable_layers)
 
