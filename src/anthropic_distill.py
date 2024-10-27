@@ -62,6 +62,11 @@ def main():
         # }
     }
 
+    accelerator = Accelerator()
+    device = accelerator.device
+
+    print(device)
+
     model_args = ModelArguments(
         model_name_or_path=config["models"]["teacher"],
         # device_map='auto',
@@ -83,10 +88,6 @@ def main():
     student_model = load_model(student_tokenizer, model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
 
 
-    # accelerator = Accelerator()
-    # device = accelerator.device
-    #
-    # print(device)
 
     dataset = load_dataset(config["dataset"]["name"], split=config["dataset"]["split"])
     dataset = dataset.shuffle(seed=config["dataset"]["seed"])
