@@ -64,6 +64,7 @@ def main():
 
     model_args = ModelArguments(
         model_name_or_path=config["models"]["teacher"],
+        # device_map='auto',
         # use_unsloth=True
     )
     # tokenizer_module = load_tokenizer(model_args)

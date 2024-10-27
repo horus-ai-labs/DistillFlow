@@ -123,7 +123,7 @@ def load_model(
     if model is None and not lazy_load:
         init_kwargs["config"] = config
         init_kwargs["pretrained_model_name_or_path"] = model_args.model_name_or_path
-        model = AutoModelForCausalLM.from_pretrained(**init_kwargs)
+        model = AutoModelForCausalLM.from_pretrained(**init_kwargs, device_map="auto")
 
     if not lazy_load:
         # patch_model(model, tokenizer, model_args, is_trainable, add_valuehead)
