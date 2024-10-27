@@ -15,6 +15,7 @@ from distillflow.model.finetuning_args import FinetuningArguments
 from datasets import load_dataset
 from accelerate import Accelerator
 from transformers import AutoTokenizer, TrainingArguments
+from distillflow.trainer import LogitsTrainer
 def main():
     config = {
         "project_name": "distil-logits",
@@ -26,7 +27,7 @@ def main():
         },
         "models": {
             "teacher": "neuralmagic/Llama-3.2-3B-Instruct-FP8",
-            "student": "neuralmagic/Llama-3.2-1B-Instruct-FP8"
+            "student": "meta-llama/Llama-3.2-1B-Instruct"
         },
         "tokenizer": {
             "max_length": 4096,
@@ -44,7 +45,7 @@ def main():
             "warmup_ratio": 0.1,
             "lr_scheduler_type": "cosine",
             "resume_from_checkpoint": None,  # Set to a path or True to resume from the latest checkpoint
-            "fp16": True,
+            "fp16": False,
             "bf16": False
         },
         "distillation": {
@@ -73,6 +74,7 @@ def main():
         # use_unsloth=True
     )
     student_tokenizer = AutoTokenizer.from_pretrained(config["models"]["student"])
+    student_tokenizer.pad_token = student_tokenizer.eos_token
     # dataset_module = get_dataset(template, model_args, data_args, training_args, stage="rm", **tokenizer_module)
     # by default LORA is happening in finetuning.
     student_model = load_model(student_tokenizer, model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
@@ -133,12 +135,16 @@ def main():
 
     trainer = LogitsTrainer(
         model=student_model,
+        args=training_arguments,
         train_dataset=tokenized_dataset["train"],
         eval_dataset=tokenized_dataset["test"],
         tokenizer=student_tokenizer,
-        args=training_arguments,
         max_seq_length=config["tokenizer"]["max_length"],
         dataset_text_field="text",
+        # Distillation specific arguments
+        teacher_model=teacher_model,
+        distillation_args= config['distillation'],
+        tokenizer_args=config['tokenizer']
     )
 
     trainer.teacher_model = teacher_model
