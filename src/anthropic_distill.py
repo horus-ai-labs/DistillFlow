@@ -149,7 +149,7 @@ def main():
 
     trainer.teacher_model = teacher_model
 
-    trainer = accelerator.prepare(trainer)
+    # trainer = accelerator.prepare(trainer)
 
     trainer.train(resume_from_checkpoint=config["training"]["resume_from_checkpoint"])
 
