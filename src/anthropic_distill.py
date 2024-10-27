@@ -26,7 +26,9 @@ def main():
             "seed": 42
         },
         "models": {
-            "teacher": "neuralmagic/Llama-3.2-3B-Instruct-FP8",
+            # "teacher": "neuralmagic/Llama-3.2-3B-Instruct-FP8",
+            "teacher": "meta-llama/Llama-3.2-3B-Instruct",
+
             "student": "meta-llama/Llama-3.2-1B-Instruct"
         },
         "tokenizer": {
