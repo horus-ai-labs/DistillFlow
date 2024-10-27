@@ -45,7 +45,7 @@ def main():
             "warmup_ratio": 0.1,
             "lr_scheduler_type": "cosine",
             "resume_from_checkpoint": None,  # Set to a path or True to resume from the latest checkpoint
-            "fp16": False,
+            "fp16": True,
             "bf16": False
         },
         "distillation": {
