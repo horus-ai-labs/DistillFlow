@@ -9,7 +9,7 @@ class QuantizationArguments:
     Arguments pertaining to the quantization method.
     """
 
-    quantization_method: Literal["bitsandbytes", "hqq", "eetq"] = field(
+    quantization_method: Literal["bitsandbytes", "hqq", "eetq", "gptq"] = field(
         default="bitsandbytes",
         metadata={"help": "Quantization method to use for on-the-fly quantization."},
     )

@@ -1,7 +1,6 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
-from distillflow.student import Student
-
+from .student import Student
 
 class Qwen(Student):
     def __init__(self, model_path=None, model_name='Qwen/Qwen2.5-0.5B-Instruct'):

@@ -1,14 +1,14 @@
+import argparse
 from distillflow import DistillFlow
 from distillflow.teacher.anthropic import AnthropicTeacher
 from distillflow.distill_datasets.dolly import Dolly
 # from distillflow.evaluation.rouge import compute_rouge_scores
 from distillflow.distill.sft import SFTWithoutKD
-# from distillflow.distill.sft_native import SFT
 from distillflow.student.qwen import Qwen
 import json
 
 from distillflow.student.llama3 import Llama3
-from distillflow.distill.sft_native import SFT
+#from distillflow.distill.sft_native import SFT
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.model.args import ModelArguments
 from distillflow.model.finetuning_args import FinetuningArguments
@@ -22,24 +22,24 @@ def main():
         "dataset": {
             "name": "TIGER-Lab/WebInstructSub",
             "split": "train",
-            "num_samples": 200000, # You can pass a number here to limit the number of samples to use.
+            "num_samples": 2000, # You can pass a number here to limit the number of samples to use.
             "seed": 42
         },
         "models": {
-            # "teacher": "neuralmagic/Llama-3.2-3B-Instruct-FP8",
-            "teacher": "meta-llama/Llama-3.2-3B-Instruct",
+            # "teacher": "neuralmagic/Llama-3.2-1B-Instruct-FP8",
+            "teacher": "HuggingFaceTB/SmolLM2-360M-Instruct",
 
-            "student": "meta-llama/Llama-3.2-1B-Instruct"
+            "student": "HuggingFaceTB/SmolLM2-135M-Instruct"
         },
         "tokenizer": {
-            "max_length": 4096,
+            "max_length": 1024,
             "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
         },
         "training": {
             "output_dir": "./results",
             "num_train_epochs": 3,
             "per_device_train_batch_size": 1,
-            "gradient_accumulation_steps": 8,
+            "gradient_accumulation_steps": 1,
             "save_steps": 1000,
             "logging_steps": 1,
             "learning_rate": 2e-5,
@@ -47,8 +47,8 @@ def main():
             "warmup_ratio": 0.1,
             "lr_scheduler_type": "cosine",
             "resume_from_checkpoint": None,  # Set to a path or True to resume from the latest checkpoint
-            "fp16": True,
-            "bf16": False
+            "fp16": False,
+            "bf16": True
         },
         "distillation": {
             "temperature": 2.0,
@@ -160,4 +160,15 @@ def main():
     trainer.save_model(config["training"]["output_dir"])
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        prog='ProgramName',
+        description='What the program does',
+        epilog='Text at the bottom of help')
+
+    parser.add_argument('--teacher')
+    parser.add_argument('--student')
+    parser.add_argument('--dataset')
+
+    args = parser.parse_args()
     main()

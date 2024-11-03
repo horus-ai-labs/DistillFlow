@@ -3,6 +3,8 @@ import torch.nn as nn
 from datasets import Dataset
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from trl import SFTTrainer, SFTConfig
+import torch
+import torch.nn.functional as F
 
 # TODO: Change default value behaviour. Throw warning to users for default values.
 class LogitsTrainer(SFTTrainer):
@@ -43,8 +45,7 @@ class LogitsTrainer(SFTTrainer):
         return (custom_loss, student_outputs) if return_outputs else custom_loss
 
     def distillation_loss(self, student_logits, teacher_logits, inputs, original_loss):
-        student_logits, teacher_logits = pad_logits(student_logits.to(self.model.device),
-                                                    teacher_logits.to(self.model.device))
+        student_logits, teacher_logits = student_logits.to(self.model.device), teacher_logits.to(self.model.device)
 
         student_logits_scaled = student_logits / self.distillation_args["temperature"]
         teacher_logits_scaled = teacher_logits / self.distillation_args["temperature"]
