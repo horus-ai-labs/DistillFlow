@@ -77,6 +77,8 @@ yarl = "1.13.1"
 peft = "^0.13.2"
 wheel = "^0.44.0"
 auto-gptq = "0.2.0"
+matplotlib = "^3.9.2"
+seaborn = "^0.13.2"
 
 
 [build-system]
