@@ -1,6 +1,6 @@
 import torch
 
-from distillflow.student import Student
+from ..student import Student
 
 
 class Distiller:

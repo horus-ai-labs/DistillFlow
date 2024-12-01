@@ -2,7 +2,7 @@ import os
 from typing import Tuple, List
 
 from transformers import is_torch_xpu_available, is_torch_npu_available, PreTrainedModel
-from transformers.utils import is_torch_mps_available, is_torch_cuda_available
+from transformers.utils import is_torch_mps_available, is_torch_cuda_available, is_torch_bf16_gpu_available
 import torch
 from .logger import get_logger
 
@@ -86,3 +86,21 @@ def find_all_linear_modules(model: PreTrainedModel, freeze_vision_tower: bool) -
 
     logger.info("Found linear modules: {}".format(",".join(module_names)))
     return list(module_names)
+
+_is_fp16_available = is_torch_npu_available() or is_torch_cuda_available()
+try:
+    _is_bf16_available = is_torch_bf16_gpu_available() or (is_torch_npu_available() and torch.npu.is_bf16_supported())
+except Exception:
+    _is_bf16_available = False
+
+
+def infer_optim_dtype(model_dtype: "torch.dtype") -> "torch.dtype":
+    r"""
+    Infers the optimal dtype according to the model_dtype and device compatibility.
+    """
+    if _is_bf16_available and model_dtype == torch.bfloat16:
+        return torch.bfloat16
+    elif _is_fp16_available:
+        return torch.float16
+    else:
+        return torch.float32

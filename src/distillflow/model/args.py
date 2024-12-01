@@ -79,18 +79,18 @@ class ModelArguments(QuantizationArguments):
         default="main",
         metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
     )
-    # low_cpu_mem_usage: bool = field(
-    #     default=True,
-    #     metadata={"help": "Whether or not to use memory-efficient model loading."},
-    # )
+    low_cpu_mem_usage: bool = field(
+        default=True,
+        metadata={"help": "Whether or not to use memory-efficient model loading."},
+    )
     # rope_scaling: Optional[Literal["linear", "dynamic"]] = field(
     #     default=None,
     #     metadata={"help": "Which scaling strategy should be adopted for the RoPE embeddings."},
     # )
-    # flash_attn: Literal["auto", "disabled", "sdpa", "fa2"] = field(
-    #     default="auto",
-    #     metadata={"help": "Enable FlashAttention for faster training and inference."},
-    # )
+    flash_attn: Literal["auto", "disabled", "sdpa", "fa2"] = field(
+        default="auto",
+        metadata={"help": "Enable FlashAttention for faster training and inference."},
+    )
     # shift_attn: bool = field(
     #     default=False,
     #     metadata={"help": "Enable shift short attention (S^2-Attn) proposed by LongLoRA."},
@@ -103,10 +103,10 @@ class ModelArguments(QuantizationArguments):
         default=False,
         metadata={"help": "Whether or not to use unsloth's optimization for the LoRA training."},
     )
-    # use_unsloth_gc: bool = field(
-    #     default=False,
-    #     metadata={"help": "Whether or not to use unsloth's gradient checkpointing."},
-    # )
+    use_unsloth_gc: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to use unsloth's gradient checkpointing."},
+    )
     # enable_liger_kernel: bool = field(
     #     default=False,
     #     metadata={"help": "Whether or not to enable liger kernel for faster training."},
@@ -115,18 +115,18 @@ class ModelArguments(QuantizationArguments):
     #     default=None,
     #     metadata={"help": "Coefficient of the auxiliary router loss in mixture-of-experts model."},
     # )
-    # disable_gradient_checkpointing: bool = field(
-    #     default=False,
-    #     metadata={"help": "Whether or not to disable gradient checkpointing."},
-    # )
-    # upcast_layernorm: bool = field(
-    #     default=False,
-    #     metadata={"help": "Whether or not to upcast the layernorm weights in fp32."},
-    # )
-    # upcast_lmhead_output: bool = field(
-    #     default=False,
-    #     metadata={"help": "Whether or not to upcast the output of lm_head in fp32."},
-    # )
+    disable_gradient_checkpointing: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to disable gradient checkpointing."},
+    )
+    upcast_layernorm: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to upcast the layernorm weights in fp32."},
+    )
+    upcast_lmhead_output: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to upcast the output of lm_head in fp32."},
+    )
     # train_from_scratch: bool = field(
     #     default=False,
     #     metadata={"help": "Whether or not to randomly initialize the model weights."},
@@ -139,10 +139,10 @@ class ModelArguments(QuantizationArguments):
         default="offload",
         metadata={"help": "Path to offload model weights."},
     )
-    # use_cache: bool = field(
-    #     default=True,
-    #     metadata={"help": "Whether or not to use KV cache in generation."},
-    # )
+    use_cache: bool = field(
+        default=True,
+        metadata={"help": "Whether or not to use KV cache in generation."},
+    )
     infer_dtype: Literal["auto", "float16", "bfloat16", "float32"] = field(
         default="auto",
         metadata={"help": "Data type for model weights and activations at inference."},
@@ -169,7 +169,7 @@ class ModelArguments(QuantizationArguments):
         metadata={"help": "Torch data type for computing model outputs, derived from `fp/bf16`. Do not specify it."},
     )
     device_map: Optional[Union[str, Dict[str, Any]]] = field(
-        default=None,
+        default="auto",
         init=False,
         metadata={"help": "Device map for model placement, derived from training stage. Do not specify it."},
     )
