@@ -1,10 +1,8 @@
-import json
 from dataclasses import dataclass
-from enum import Enum, unique
 from typing import Dict, Any, Optional
 
 from .template import Template
-from ..dataset_args import Role
+from .role import Role
 
 @dataclass
 class AlpacaArgs:

@@ -1,18 +1,20 @@
 from typing import Callable, Dict, List, Optional, Tuple, Union
 import torch.nn as nn
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from trl import SFTTrainer, SFTConfig
 import torch
 import torch.nn.functional as F
 
+from ..distill_datasets.loader import DatasetModule
+
+
 # TODO: Change default value behaviour. Throw warning to users for default values.
 class LogitsTrainer(SFTTrainer):
     def __init__(self,
-                 model: Optional[Union[PreTrainedModel, nn.Module, str]] = None,
+                 model: Union[PreTrainedModel, nn.Module, str],
+                 dataset_module: DatasetModule,
                  args: Optional[SFTConfig] = None,
-                 train_dataset: Optional[Dataset] = None,
-                 eval_dataset: Optional[Union[Dataset, Dict[str, Dataset]]] = None,
                  tokenizer: Optional[PreTrainedTokenizerBase] = None,
                  max_seq_length: Optional[int] = None,
                  dataset_text_field: Optional[str] = None,
@@ -23,6 +25,11 @@ class LogitsTrainer(SFTTrainer):
         self.teacher_model = teacher_model
         self.distillation_args = distillation_args
         self.tokenizer_args = tokenizer_args
+        train_dataset = dataset_module["train_dataset"]
+        eval_dataset = dataset_module["eval_dataset"]
+
+        if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
+            raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
 
         super().__init__(model=model, args=args, train_dataset=train_dataset,
                          eval_dataset=eval_dataset, tokenizer=tokenizer,

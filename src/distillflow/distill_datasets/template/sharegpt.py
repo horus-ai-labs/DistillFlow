@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
 from .template import Template
-from ..dataset_args import DatasetArgs, Role
+from .role import Role
 from ...misc import get_logger
 
 logger = get_logger(__name__)

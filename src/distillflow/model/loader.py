@@ -5,9 +5,8 @@ from types import MethodType
 from typing import TypedDict, Optional, Dict, Any
 
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
-# from auto_gptq import AutoGPTQForCausalLM
 from transformers import PreTrainedTokenizer, ProcessorMixin, AutoConfig, AutoTokenizer, AutoProcessor, PreTrainedModel, \
-    PretrainedConfig, AutoModelForCausalLM, GPTQConfig, is_torch_npu_available
+    PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available
 from transformers.utils import is_torch_sdpa_available, is_flash_attn_2_available
 from transformers.utils.versions import require_version
 
@@ -104,7 +103,7 @@ def load_tokenizer(model_args: ModelArguments) -> TokenizerModule:
 
     return {"tokenizer": tokenizer, "processor": processor}
 
-def register_autoclass(config: PretrainedConfig, model: "PreTrainedModel", tokenizer: "PreTrainedTokenizer"):
+def _register_autoclass(config: PretrainedConfig, model: "PreTrainedModel", tokenizer: "PreTrainedTokenizer"):
     if "AutoConfig" in getattr(config, "auto_map", {}):
         config.__class__.register_for_auto_class()
     if "AutoModelForCausalLM" in getattr(config, "auto_map", {}):
@@ -112,7 +111,7 @@ def register_autoclass(config: PretrainedConfig, model: "PreTrainedModel", token
     if "AutoTokenizer" in tokenizer.init_kwargs.get("auto_map", {}):
         tokenizer.__class__.register_for_auto_class()
 
-def configure_attn_implementation(
+def _configure_attn_implementation(
         config: PretrainedConfig, model_args: ModelArguments, is_trainable: bool
 ) -> None:
     if getattr(config, "model_type", None) == "gemma2" and is_trainable:
@@ -156,7 +155,7 @@ def configure_attn_implementation(
         setattr(config, "_attn_implementation", requested_attn_implementation)
 
 
-def patch_config(
+def _patch_config(
         config: PretrainedConfig,
         tokenizer: PreTrainedTokenizer,
         model_args: ModelArguments,
@@ -173,7 +172,7 @@ def patch_config(
         use_jit_compile = os.environ.get("JIT_COMPILE", "0").lower() in ["true", "1"]
         torch.npu.set_compile_mode(jit_compile=use_jit_compile)
 
-    configure_attn_implementation(config, model_args, is_trainable)
+    _configure_attn_implementation(config, model_args, is_trainable)
     # configure_rope(config, model_args, is_trainable)
     # configure_longlora(config, model_args, is_trainable)
     configure_quantization(config, tokenizer, model_args, init_kwargs)
@@ -220,7 +219,7 @@ def _noisy_mean_initialization(embed_weight: "torch.Tensor", num_new_tokens: int
     noise_weight.normal_(mean=0, std=(1.0 / math.sqrt(embedding_dim)))
     embed_weight[-num_new_tokens:] = avg_weight + noise_weight
 
-def resize_embedding_layer(model: "PreTrainedModel", tokenizer: "PreTrainedTokenizer") -> None:
+def _resize_embedding_layer(model: "PreTrainedModel", tokenizer: "PreTrainedTokenizer") -> None:
     r"""
     Resize token embeddings.
     """
@@ -254,7 +253,7 @@ def resize_embedding_layer(model: "PreTrainedModel", tokenizer: "PreTrainedToken
 
         logger.info("Resized token embeddings from {} to {}.".format(current_embedding_size, new_embedding_size))
 
-def patch_model(
+def _patch_model(
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
         model_args: ModelArguments,
@@ -276,7 +275,7 @@ def patch_model(
     #     prepare_valuehead_model(model)
 
     if model_args.resize_vocab:
-        resize_embedding_layer(model, tokenizer)
+        _resize_embedding_layer(model, tokenizer)
 
     if is_trainable:
         prepare_model_for_training(model, model_args)
@@ -287,8 +286,7 @@ def patch_model(
     #     print_attn_implementation(model.config)
 
 def load_model(
-        tokenizer: PreTrainedTokenizer,
-        model_args: "ModelArguments",
+        model_args: ModelArguments,
         finetuning_args: FinetuningArguments,
         is_trainable: bool = False,
         # add_valuehead: bool = False,
@@ -296,6 +294,7 @@ def load_model(
     r"""
     Loads pretrained model.
     """
+    tokenizer = load_tokenizer(model_args)["tokenizer"]
     init_kwargs = _get_init_kwargs(model_args)
     config = AutoConfig.from_pretrained(model_args.model_name_or_path, **init_kwargs)
     configure_quantization(config, tokenizer, model_args, init_kwargs)
@@ -326,8 +325,8 @@ def load_model(
         model = AutoModelForCausalLM.from_pretrained(**init_kwargs)
 
     if not lazy_load:
-        patch_model(model, tokenizer, model_args, is_trainable)
-        register_autoclass(config, model, tokenizer)
+        _patch_model(model, tokenizer, model_args, is_trainable)
+        _register_autoclass(config, model, tokenizer)
 
     model = init_adapter(config, model, model_args, finetuning_args, is_trainable)
 

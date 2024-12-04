@@ -1,12 +1,12 @@
-from random import sample, randint
+from random import randint
 
-from transformers import TrainingArguments
+from datasets import Dataset
 from trl import SFTConfig
 
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.model.args import ModelArguments
 from distillflow.model.finetuning_args import FinetuningArguments
-from distillflow.distill_datasets.loader import get_dataset
+from distillflow.distill_datasets.loader import get_dataset, DatasetModule
 from distillflow.distill_datasets.dataset_args import DatasetArgs
 from distillflow.distill_datasets.template import Alpaca, AlpacaArgs
 from distillflow.trainer.logits_distillation import LogitsTrainer
@@ -14,33 +14,30 @@ from distillflow.distill_datasets.dataset_args import DataArgs
 
 
 def main():
-    model_args = ModelArguments(
-        model_name_or_path="meta-llama/Llama-3.2-1B-Instruct",
+    student_model_args = ModelArguments(
+        model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         # quantization_bit=8,
         # quantization_method="gptq"
     )
+    student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
+    teacher_model_args = ModelArguments(
+        model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        # quantization_bit=8,
+        # quantization_method="gptq"
+    )
+    teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
 
-    tokenizer_module = load_tokenizer(model_args)
-    tokenizer = tokenizer_module["tokenizer"]
-    student_model = load_model(tokenizer, model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
-
-    alpaca = Alpaca(args=AlpacaArgs(
-        prompt="instruction",
-        query="context",
-        response="response"
-    ))
-    data_args=DataArgs(train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", to_text=True), val_size=0.2)
-
-    dataset_module = get_dataset(alpaca, model_args, data_args, tokenizer)
-
-    # print random rows
-    dataset = dataset_module['train_dataset']
-    random_rows = [randint(0, dataset.num_rows-1) for _ in range(1)]
-    sample = dataset.select(random_rows)
-    print(sample.to_dict())
-
-    model = load_model(tokenizer, model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
-
+    data_args=DataArgs(
+        template=Alpaca(args=AlpacaArgs(
+            prompt="instruction",
+            query="context",
+            response="response"
+        )),
+        train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", to_text=True, seed=42),
+        test_size=1000,
+        streaming=True)
+    tokenizer = load_tokenizer(student_model_args)["tokenizer"]
+    dataset_module = get_dataset(data_args, tokenizer)
 
     config = {
         "output_dir": "./results",
@@ -48,6 +45,7 @@ def main():
         "per_device_train_batch_size": 1,
         "gradient_accumulation_steps": 1,
         "save_steps": 1000,
+        "max_steps": 5000, # need to specify with streaming enabled
         "logging_steps": 1,
         "learning_rate": 2e-5,
         "weight_decay": 0.05,
@@ -60,13 +58,12 @@ def main():
     trainer = LogitsTrainer(
         model=student_model,
         args=SFTConfig(**config),
-        train_dataset=dataset_module['train_dataset'],
-        eval_dataset=dataset_module['eval_dataset'],
+        dataset_module=dataset_module,
         tokenizer=tokenizer,
         max_seq_length=1024,
         dataset_text_field="text",
         # Distillation specific arguments
-        teacher_model=model,
+        teacher_model=teacher_model,
         distillation_args= {"temperature": 2.0, "alpha": 0.5},
         tokenizer_args={"max_length": 1024,
                         "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
@@ -75,7 +72,11 @@ def main():
     trainer_stats = trainer.train()
 
 
-
+def print_random(dataset: Dataset):
+    # print random rows
+    random_rows = [randint(0, dataset.num_rows-1) for _ in range(1)]
+    sample = dataset.select(random_rows)
+    print(sample.to_dict())
 
 # tokenizer_module = load_tokenizer(model_args)
     # tokenizer = tokenizer_module["tokenizer"]
