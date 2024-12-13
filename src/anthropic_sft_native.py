@@ -22,7 +22,6 @@ def main():
 
     # pipeline.prepare_data()
     # pipeline.collect_responses(output_file="anthropic_responses.csv")
-    #
     pipeline.train_student_model(output_dir="./sft_native_output_test")
     # validation outputs
     # parse data from test_dataset

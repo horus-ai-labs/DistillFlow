@@ -66,7 +66,6 @@ class DistillFlow:
 
         elif isinstance(data, dict):
             # need to contain
-            print("Not implemented yet.")
             return self.distiller.student.inference(data)
         else:
             raise NotImplementedError("no support for other data types")

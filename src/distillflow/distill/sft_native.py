@@ -13,7 +13,7 @@ from ..student.llama3 import Llama3
 from .distiller import Distiller
 
 class SFT(Distiller):
-    def __init__(self, student_model=Llama3()):
+    def __init__(self, student_model):
         """
         Initialize the student model.
         Args:
@@ -54,8 +54,8 @@ class SFT(Distiller):
                 # num_train_epochs = 1, # Set this for 1 full training run.
                 max_steps=30,
                 learning_rate=2e-4,
-                # fp16=True,
-                # bf16=is_bfloat16_supported(),
+                fp16=False,
+                bf16=False,
                 logging_steps=1,
                 optim="adamw_hf",
                 weight_decay=0.01,

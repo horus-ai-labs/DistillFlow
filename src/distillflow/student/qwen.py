@@ -78,6 +78,9 @@ class Qwen(Student):
         # query has two parts instruction, input
         self.model.eval()
 
+        self.model.to('cpu')
+        # device = self.model.device
+
         inputs = self.tokenizer(
             [
                 self.prompt.format(
@@ -86,6 +89,8 @@ class Qwen(Student):
                     "",  # output - leave this blank for generation!
                 )
             ], return_tensors="pt")
+
+        # inputs.to(device)
 
         output = self.model.generate(
                                 **inputs,
