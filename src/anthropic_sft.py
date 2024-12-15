@@ -15,13 +15,13 @@ from distillflow.distill_datasets.dataset_args import DataArgs
 
 def main():
     student_model_args = ModelArguments(
-        model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        model_name_or_path="arcee-ai/Arcee-Spark",#"meta-llama/Llama-3.2-1B-Instruct",
         # quantization_bit=8,
         # quantization_method="gptq"
     )
     student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
     teacher_model_args = ModelArguments(
-        model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         # quantization_bit=8,
         # quantization_method="gptq"
     )
@@ -36,6 +36,7 @@ def main():
         train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", to_text=True, seed=42),
         test_size=1000,
         streaming=True)
+
     tokenizer = load_tokenizer(student_model_args)["tokenizer"]
     dataset_module = get_dataset(data_args, tokenizer)
 
