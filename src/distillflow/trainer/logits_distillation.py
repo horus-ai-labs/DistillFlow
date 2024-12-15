@@ -28,6 +28,8 @@ class LogitsTrainer(SFTTrainer):
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
 
+        self.device = None
+
         if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
 
@@ -39,7 +41,7 @@ class LogitsTrainer(SFTTrainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
-        self.teacher_model = self.teacher_model.to(model.device)
+        self.teacher_model = self.teacher_model.to(inputs['labels'].device)
 
         student_model = model.module if hasattr(model, 'module') else model
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
@@ -53,7 +55,7 @@ class LogitsTrainer(SFTTrainer):
         return (custom_loss, student_outputs) if return_outputs else custom_loss
 
     def distillation_loss(self, student_logits, teacher_logits, inputs, original_loss):
-        student_logits, teacher_logits = student_logits.to(self.model.device), teacher_logits.to(self.model.device)
+        student_logits, teacher_logits = student_logits.to(inputs['labels'].device), teacher_logits.to(inputs['labels'].device)
 
         student_logits_scaled = student_logits / self.distillation_args["temperature"]
         teacher_logits_scaled = teacher_logits / self.distillation_args["temperature"]
