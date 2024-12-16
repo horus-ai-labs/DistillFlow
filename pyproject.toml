@@ -3,7 +3,7 @@ name = "distillflow"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
-readme = "README.md"
+readme = "README.rst"
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -77,6 +77,7 @@ yarl = "1.13.1"
 peft = "^0.13.2"
 wheel = "^0.44.0"
 auto-gptq = "0.2.0"
+runpod = "^1.7.7"
 
 
 [build-system]
