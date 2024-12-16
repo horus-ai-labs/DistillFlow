@@ -8,21 +8,21 @@ from distillflow.model.args import ModelArguments
 from distillflow.model.finetuning_args import FinetuningArguments
 from distillflow.distill_datasets.loader import get_dataset, DatasetModule
 from distillflow.distill_datasets.dataset_args import DatasetArgs
-from distillflow.distill_datasets.template import Alpaca, AlpacaArgs
+from distillflow.distill_datasets.template import Alpaca, AlpacaArgs, ShareGPT, ShareGptArgs
 from distillflow.trainer.logits_distillation import LogitsTrainer
 from distillflow.distill_datasets.dataset_args import DataArgs
 
 
 def main():
     student_model_args = ModelArguments(
-        model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
+        model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         # model_name_or_path="meta-llama/Llama-3.2-1B-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         # quantization_bit=8,
         # quantization_method="gptq"
     )
     student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
     teacher_model_args = ModelArguments(
-        model_name_or_path="arcee-ai/Arcee-Spark",#"meta-llama/Llama-3.2-1B-Instruct",
+        model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         # model_name_or_path="meta-llama/Llama-3.2-1B-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         # quantization_bit=8,
         # quantization_method="gptq"
@@ -30,14 +30,11 @@ def main():
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
 
     data_args=DataArgs(
-        template=Alpaca(args=AlpacaArgs(
-            prompt="instruction",
-            query="context",
-            response="response"
+        template=ShareGPT(args=ShareGptArgs(
         )),
-        train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", to_text=True, seed=42),
+        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", to_text=True, seed=42),
         test_size=1000,
-        streaming=True)
+        streaming=False)
 
     tokenizer = load_tokenizer(student_model_args)["tokenizer"]
     dataset_module = get_dataset(data_args, tokenizer)
@@ -48,7 +45,7 @@ def main():
         "per_device_train_batch_size": 1,
         "gradient_accumulation_steps": 1,
         "save_steps": 1000,
-        "max_steps": 5000, # need to specify with streaming enabled
+        # "max_steps": 5000, # need to specify with streaming enabled
         "logging_steps": 1,
         "learning_rate": 2e-5,
         "weight_decay": 0.05,

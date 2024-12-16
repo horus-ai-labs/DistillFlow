@@ -47,7 +47,10 @@ class ShareGPT(Template):
             system = messages[0][self.args.content_tag]
             messages = messages[1:]
         else:
-            system = example[self.args.system] if self.args.system else ""
+            system = example[self.args.system_tag] if self.args.system_tag in example else {"role": "system", "content": "You are a helpful assistant."}
+
+
+            # system = example[self.args.system_tag] if self.args.system_tag else ""
 
         aligned_messages = []
         broken_data = False
@@ -104,6 +107,6 @@ class ShareGPT(Template):
             "_prompt": prompt,
             "_response": response,
             "_system": system,
-            "_tools": example[self.args.tools] if self.args.tools else "",
+            # "_tools": example[self.args.tools] if self.args.tools else "",
         }
         return output
