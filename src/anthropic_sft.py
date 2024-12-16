@@ -6,11 +6,12 @@ from trl import SFTConfig
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.model.args import ModelArguments
 from distillflow.model.finetuning_args import FinetuningArguments
-from distillflow.distill_datasets.loader import get_dataset, DatasetModule
+from distillflow.distill_datasets.loader import get_dataset
 from distillflow.distill_datasets.dataset_args import DatasetArgs
-from distillflow.distill_datasets.template import Alpaca, AlpacaArgs
-from distillflow.trainer.logits_distillation import LogitsTrainer
 from distillflow.distill_datasets.dataset_args import DataArgs
+from distillflow.trainer.layers_distillation import LayersTrainer
+from distillflow.distill_datasets.template import ShareGpt, ShareGptArgs, AlpacaArgs, Alpaca
+from distillflow.trainer.logits_distillation import LogitsTrainer
 
 
 def main():
@@ -28,24 +29,60 @@ def main():
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
 
     data_args=DataArgs(
-        template=Alpaca(args=AlpacaArgs(
-            prompt="instruction",
-            query="context",
-            response="response"
-        )),
-        train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", to_text=True, seed=42),
+        template=ShareGpt(),
+        # train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", dataset_text_field="text", seed=42),
+        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42),
         test_size=1000,
-        streaming=True)
+        streaming=False)
     tokenizer = load_tokenizer(student_model_args)["tokenizer"]
     dataset_module = get_dataset(data_args, tokenizer)
 
+    logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+    # layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+
+def layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
     config = {
         "output_dir": "./results",
         "num_train_epochs": 3,
         "per_device_train_batch_size": 1,
         "gradient_accumulation_steps": 1,
         "save_steps": 1000,
-        "max_steps": 5000, # need to specify with streaming enabled
+        # "max_steps": 15000, # need to specify with streaming enabled
+        "logging_steps": 1,
+        "learning_rate": 2e-5,
+        "weight_decay": 0.05,
+        "warmup_ratio": 0.1,
+        "lr_scheduler_type": "cosine",
+        "resume_from_checkpoint": None,  # Set to a path or True to resume from the latest checkpoint
+        "fp16": False,
+        "bf16": True,
+        "max_grad_norm": 1.0,
+        "group_by_length": False
+    }
+    trainer = LayersTrainer(
+        model=student_model,
+        args=SFTConfig(**config),
+        dataset_module=dataset_module,
+        tokenizer=tokenizer,
+        max_seq_length=1024,
+        dataset_text_field=data_args.train_dataset.dataset_text_field,
+        # Distillation specific arguments
+        teacher_model=teacher_model,
+        distillation_args= {"temperature": 2.0, "alpha": 0.5},
+        tokenizer_args={"max_length": 1024,
+                        "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+                        }
+    )
+    trainer_stats = trainer.train()
+
+def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
+    config = {
+        "output_dir": "./results",
+        "num_train_epochs": 3,
+        "per_device_train_batch_size": 1,
+        "gradient_accumulation_steps": 1,
+        "save_steps": 1000,
+        # "max_steps": 5000, # need to specify with streaming enabled
         "logging_steps": 1,
         "learning_rate": 2e-5,
         "weight_decay": 0.05,
@@ -64,13 +101,12 @@ def main():
         dataset_text_field="text",
         # Distillation specific arguments
         teacher_model=teacher_model,
-        distillation_args= {"temperature": 2.0, "alpha": 0.5},
+        distillation_args={"temperature": 2.0, "alpha": 0.5},
         tokenizer_args={"max_length": 1024,
                         "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
                         }
     )
     trainer_stats = trainer.train()
-
 
 def print_random(dataset: Dataset):
     # print random rows

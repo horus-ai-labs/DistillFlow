@@ -10,7 +10,7 @@ class AlpacaArgs:
     query: Optional[str] = "input"
     response: Optional[str] = "output"
     history: Optional[str] = None
-    system: Optional[str] = None
+    system_tag: Optional[str] = None
     tools: Optional[str] = None
 
 '''
@@ -29,18 +29,18 @@ Expected data format
 ]
 '''
 class Alpaca(Template):
-    def __init__(self, args: AlpacaArgs):
+    def __init__(self, args: AlpacaArgs = AlpacaArgs()):
         self.args = args
 
     def convert(self, example: Dict[str, Any]) -> Dict[str, Any]:
         r"""
         Converts alpaca format dataset to the standard format.
         """
-        # prompt = {}
-        # if self.args.history and isinstance(example[self.args.history], list):
-        #     for old_prompt, old_response in example[self.args.history]:
-        #         prompt = {"role": Role.USER.value, "content": old_prompt}
-        #         prompt.append({"role": Role.ASSISTANT.value, "content": old_response})
+        prompt = []
+        if self.args.history and isinstance(example[self.args.history], list):
+            for old_prompt, old_response in example[self.args.history]:
+                prompt.append({"role": Role.USER.value, "content": old_prompt})
+                prompt.append({"role": Role.ASSISTANT.value, "content": old_response})
 
         query = []
         if self.args.prompt and example[self.args.prompt]:
@@ -49,7 +49,7 @@ class Alpaca(Template):
         if self.args.query and example[self.args.query]:
             query.append(example[self.args.query])
 
-        prompt = {"role": Role.USER.value, "content": "\n".join(query)}  # "prompt\nquery"
+        prompt.append({"role": Role.USER.value, "content": "\n".join(query)})
 
         # if args.kto_tag and isinstance(example[args.kto_tag], bool):  # kto example
         #     response = [{"role": Role.ASSISTANT.value, "content": example[args.response]}]
@@ -67,16 +67,19 @@ class Alpaca(Template):
         #         {"role": Role.ASSISTANT.value, "content": example[args.rejected]},
         #     ]
         if self.args.response and isinstance(example[self.args.response], str):  # normal example
-            response = {"role": Role.ASSISTANT.value, "content": example[self.args.response]}
+            response = [{"role": Role.ASSISTANT.value, "content": example[self.args.response]}]
         else:  # unsupervised
-            response = {}
+            response = []
 
-        system = example[self.args.system] if self.args.system else {"role": Role.SYSTEM.value, "content": "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request."}
+        system = [{"role": Role.SYSTEM.value,
+                   "content": example[self.args.system_tag]} if self.args.system_tag in example else {
+            "role": Role.SYSTEM.value,
+            "content": "You are a helpful assistant."}]
 
         output = {
             "_prompt": prompt,
             "_response": response,
             "_system": system,
-            "_tools": example[self.args.tools] if self.args.tools else "",
+            # "_tools": example[self.args.tools] if self.args.tools else "",
         }
         return output

@@ -1,15 +1,11 @@
 import torch
-from datasets import load_dataset
 from torch.utils.data import DataLoader
 from datasets import Dataset
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from transformers import get_linear_schedule_with_warmup
-# from trl import SFTTrainer
 from accelerate import Accelerator
 
-from distillflow.distill.distiller import Distiller
-from distillflow.student import Student
+from .distiller import Distiller
+from ..student import Student
 
 class SFTWithoutKD(Distiller):
     def __init__(self, student_model: Student):

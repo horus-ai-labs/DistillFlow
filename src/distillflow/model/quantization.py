@@ -7,8 +7,8 @@ from transformers.modeling_utils import is_fsdp_enabled
 from transformers.utils.versions import require_version
 
 from .args import ModelArguments
-from ..misc.logger import get_logger
-from ..misc import get_current_device
+from ..common.logger import get_logger
+from ..common import get_current_device
 
 from transformers import PretrainedConfig, PreTrainedTokenizer
 

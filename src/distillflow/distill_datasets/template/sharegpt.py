@@ -1,9 +1,10 @@
+import json
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
 from .template import Template
 from .role import Role
-from ...misc import get_logger
+from ...common import get_logger
 
 logger = get_logger(__name__)
 
@@ -19,9 +20,9 @@ class ShareGptArgs:
     function_tag: Optional[str] = "function_call"
     system_tag: Optional[str] = "system"
 
-class ShareGPT(Template):
+class ShareGpt(Template):
 
-    def __init__(self, args: ShareGptArgs):
+    def __init__(self, args: ShareGptArgs = ShareGptArgs()):
         self.args = args
 
     def convert(self, example: Dict[str, Any]) -> Dict[str, Any]:
@@ -39,15 +40,17 @@ class ShareGPT(Template):
         even_tags = (self.args.assistant_tag, self.args.function_tag)
         accept_tags = (odd_tags, even_tags)
         messages = example[self.args.messages]
+        system = []
         if (
                 self.args.system_tag
                 and len(messages) != 0
                 and messages[0][self.args.role_tag] == self.args.system_tag
         ):
-            system = messages[0][self.args.content_tag]
+            system.append({"role": Role.SYSTEM.value, "content": messages[0][self.args.content_tag]})
             messages = messages[1:]
         else:
-            system = example[self.args.system] if self.args.system else ""
+            system.append({"role": Role.SYSTEM.value, "content": example[self.args.system_tag]} if self.args.system_tag in example else {"role": Role.SYSTEM.value,
+                                                                         "content": "You are a helpful assistant."})
 
         aligned_messages = []
         broken_data = False
@@ -57,8 +60,9 @@ class ShareGPT(Template):
                 broken_data = True
 
             aligned_messages.append(
-                {"role": tag_mapping[message[self.args.role_tag]], "content": message[self.args.content_tag]}
+                {"role": tag_mapping[message.get(self.args.role_tag, '')], "content": message.get(self.args.content_tag, '')}
             )
+
 
         # if (not self.args.ranking and len(aligned_messages) % 2 != 0) or (
         #         self.args.ranking and len(aligned_messages) % 2 == 0
@@ -96,6 +100,14 @@ class ShareGPT(Template):
         prompt = aligned_messages[:-1]
         response = aligned_messages[-1:]
 
+        if isinstance(response, str):
+            try:
+                response = json.loads(response)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON in response: {response}") from e
+
+        print(response)
+
         if broken_data:
             logger.warning("Skipping this abnormal example.")
             prompt, response = [], []
@@ -104,6 +116,6 @@ class ShareGPT(Template):
             "_prompt": prompt,
             "_response": response,
             "_system": system,
-            "_tools": example[self.args.tools] if self.args.tools else "",
         }
+
         return output

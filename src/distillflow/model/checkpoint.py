@@ -7,7 +7,7 @@ import torch
 from transformers import PreTrainedModel
 
 from .args import ModelArguments
-from ..misc import get_logger
+from ..common import get_logger
 
 logger = get_logger(__name__)
 

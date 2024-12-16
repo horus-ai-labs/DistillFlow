@@ -15,11 +15,11 @@ from .checkpoint import prepare_model_for_training
 from .finetuning_args import FinetuningArguments
 from .quantization import configure_quantization, QuantizationMethod
 from .unsloth import load_unsloth_pretrained_model
-from ..misc.logger import get_logger
+from ..common.logger import get_logger
 from .args import ModelArguments
 import torch
 
-from ..misc import count_parameters, infer_optim_dtype
+from ..common import count_parameters, infer_optim_dtype
 from transformers.models.llama.modeling_llama import (
     Cache,
     LlamaAttention,
@@ -291,9 +291,6 @@ def load_model(
         is_trainable: bool = False,
         # add_valuehead: bool = False,
 ) -> PreTrainedModel:
-    r"""
-    Loads pretrained model.
-    """
     tokenizer = load_tokenizer(model_args)["tokenizer"]
     init_kwargs = _get_init_kwargs(model_args)
     config = AutoConfig.from_pretrained(model_args.model_name_or_path, **init_kwargs)

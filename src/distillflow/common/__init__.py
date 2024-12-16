@@ -1,4 +1,4 @@
-from .misc import get_current_device, count_parameters, find_all_linear_modules, infer_optim_dtype
+from .common import get_current_device, count_parameters, find_all_linear_modules, infer_optim_dtype
 from .logger import get_logger
 
 __all__ = [

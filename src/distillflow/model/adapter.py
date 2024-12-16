@@ -8,12 +8,12 @@ from transformers.modeling_utils import is_fsdp_enabled
 
 from .args import ModelArguments
 from .finetuning_args import FinetuningArguments
-from ..misc.logger import get_logger
+from ..common.logger import get_logger
 from .unsloth import get_unsloth_peft_model, load_unsloth_peft_model
 
 from transformers import PretrainedConfig, PreTrainedModel
 
-from ..misc import find_all_linear_modules
+from ..common import find_all_linear_modules
 
 logger = get_logger(__name__)
 

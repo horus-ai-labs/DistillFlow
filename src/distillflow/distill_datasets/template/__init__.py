@@ -1,11 +1,11 @@
 from .alpaca import Alpaca, AlpacaArgs
-from .sharegpt import ShareGptArgs, ShareGPT
+from .sharegpt import ShareGptArgs, ShareGpt
 from .template import Template
 
 __all__ = [
     Alpaca,
     AlpacaArgs,
-    ShareGPT,
+    ShareGpt,
     ShareGptArgs,
     Template,
 ]

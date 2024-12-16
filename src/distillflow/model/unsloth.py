@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional
 
-from ..misc import get_current_device
-from ..misc.logger import get_logger
+from ..common import get_current_device
+from ..common.logger import get_logger
 
 from transformers import PretrainedConfig, PreTrainedModel
 

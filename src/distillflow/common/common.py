@@ -8,20 +8,19 @@ from .logger import get_logger
 
 logger = get_logger(__name__)
 
-def get_current_device() -> "torch.device":
-    r"""
-    Gets the current available device.
-    """
-    if is_torch_xpu_available():
-        device = "xpu:{}".format(os.environ.get("LOCAL_RANK", "0"))
-    elif is_torch_npu_available():
-        device = "npu:{}".format(os.environ.get("LOCAL_RANK", "0"))
-    elif is_torch_mps_available():
-        device = "mps:{}".format(os.environ.get("LOCAL_RANK", "0"))
-    elif is_torch_cuda_available():
-        device = "cuda:{}".format(os.environ.get("LOCAL_RANK", "0"))
-    else:
-        device = "cpu"
+def get_current_device() -> torch.device:
+    local_rank = os.environ.get("LOCAL_RANK", "0")
+    device_map = {
+        is_torch_xpu_available: "xpu",
+        is_torch_npu_available: "npu",
+        is_torch_mps_available: "mps",
+        is_torch_cuda_available: "cuda"
+    }
+
+    device = "cpu"
+    for b, d in device_map.items():
+        if b():
+            device = "{}:{}".format(d, local_rank)
 
     print(f"USING device {device}")
     return torch.device(device)
@@ -94,7 +93,7 @@ except Exception:
     _is_bf16_available = False
 
 
-def infer_optim_dtype(model_dtype: "torch.dtype") -> "torch.dtype":
+def infer_optim_dtype(model_dtype: torch.dtype) -> torch.dtype:
     r"""
     Infers the optimal dtype according to the model_dtype and device compatibility.
     """

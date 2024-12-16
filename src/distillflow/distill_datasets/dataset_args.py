@@ -11,7 +11,8 @@ class DatasetArgs:
 
     path: str = ""
     num_samples: Optional[int] = None
-    to_text: bool = False
+    dataset_text_field: str = None
+    load_from_cache_file: bool = True
 
     # formatting: Literal["alpaca", "sharegpt"] = "alpaca"
     # ranking: bool = False
