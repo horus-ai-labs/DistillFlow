@@ -107,10 +107,10 @@ class ModelArguments(QuantizationArguments):
         default=False,
         metadata={"help": "Whether or not to use unsloth's gradient checkpointing."},
     )
-    # enable_liger_kernel: bool = field(
-    #     default=False,
-    #     metadata={"help": "Whether or not to enable liger kernel for faster training."},
-    # )
+    enable_liger_kernel: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to enable liger kernel for faster training."},
+    )
     # moe_aux_loss_coef: Optional[float] = field(
     #     default=None,
     #     metadata={"help": "Coefficient of the auxiliary router loss in mixture-of-experts model."},
@@ -162,6 +162,10 @@ class ModelArguments(QuantizationArguments):
     print_param_status: bool = field(
         default=False,
         metadata={"help": "For debugging purposes, print the status of the parameters in the model."},
+    )
+    output_attentions: bool = field(
+        default=False,
+        metadata={"help": "Whether to output the attention mask for the model during forward pass"}
     )
     compute_dtype: Optional[torch.dtype] = field(
         default=None,

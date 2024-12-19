@@ -12,16 +12,19 @@ from distillflow.distill_datasets.dataset_args import DatasetArgs
 from distillflow.distill_datasets.template import Alpaca, AlpacaArgs, ShareGpt, ShareGptArgs
 from distillflow.trainer.logits_distillation import LogitsTrainer
 from distillflow.distill_datasets.dataset_args import DataArgs
+from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.distill_datasets.template import ShareGpt, ShareGptArgs, AlpacaArgs, Alpaca
 from distillflow.trainer.logits_distillation import LogitsTrainer
-
 
 def main():
     student_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         use_unsloth=False,
+        model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        output_attentions=True,
+        enable_liger_kernel=True
         # quantization_bit=8,
         # quantization_method="gptq"
     )
@@ -31,6 +34,10 @@ def main():
         model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         quantization_bit=8,
         use_unsloth=False,
+        model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        output_attentions=True,
+        enable_liger_kernel=True
+        # quantization_bit=8,
         # quantization_method="gptq"
     )
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
@@ -87,8 +94,44 @@ def main():
     dataset_module['train_dataset'] = tokenized_dataset['train']
     dataset_module['eval_dataset'] = tokenized_dataset['test']
 
-    logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+    # logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
     # layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+    attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+
+def attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
+    config = {
+        "output_dir": "./results",
+        "num_train_epochs": 3,
+        "per_device_train_batch_size": 1,
+        "gradient_accumulation_steps": 1,
+        "save_steps": 1000,
+        # "max_steps": 15000, # need to specify with streaming enabled
+        "logging_steps": 1,
+        "learning_rate": 2e-5,
+        "weight_decay": 0.05,
+        "warmup_ratio": 0.1,
+        "lr_scheduler_type": "cosine",
+        "resume_from_checkpoint": None,  # Set to a path or True to resume from the latest checkpoint
+        "fp16": False,
+        "bf16": True,
+        "max_grad_norm": 1.0,
+        "group_by_length": False
+    }
+    trainer = AttentionTrainer(
+        model=student_model,
+        args=SFTConfig(**config),
+        dataset_module=dataset_module,
+        tokenizer=tokenizer,
+        max_seq_length=1024,
+        dataset_text_field=data_args.train_dataset.dataset_text_field,
+        # Distillation specific arguments
+        teacher_model=teacher_model,
+        distillation_args={"temperature": 2.0, "alpha": 0.5},
+        tokenizer_args={"max_length": 1024,
+                        "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+                        }
+    )
+    trainer_stats = trainer.train()
 
 def layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
     config = {
