@@ -37,7 +37,49 @@ def main():
         streaming=False)
 
     tokenizer = load_tokenizer(student_model_args)["tokenizer"]
-    dataset_module = get_dataset(data_args, tokenizer)
+    # dataset_module = get_dataset(data_args, tokenizer)
+
+    ################# for now just load dataset from hugging face.
+    from datasets import load_dataset
+    dataset = load_dataset("mlabonne/FineTome-100k", split='train')
+    dataset = dataset.shuffle(seed=42)
+
+    def sharegpt_format(example):
+        conversations = example['conversations']
+        message = []
+
+        if isinstance(conversations, list):
+            for conversation in conversations:
+                if isinstance(conversation, dict):
+                    if conversation.get('from') == 'human':
+                        message.append({"role": "user", "content": conversation.get('value', '')})
+                    elif conversation.get('from') == 'gpt':
+                        message.append({"role": "assistant", "content": conversation.get('value', '')})
+                    elif conversation.get('from') == 'system':
+                        message.insert(0, {"role": "system", "content": conversation.get('value', '')})
+
+        if not any(msg.get('role') == 'system' for msg in message):
+            message.insert(0, {"role": "system", "content": "You are a helpful assistant."})
+
+        text = tokenizer.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
+        return {"text": text}
+
+    tokenizer.chat_template = "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
+    print("Preprocessing and tokenizing dataset...")
+    original_columns = dataset.column_names
+    dataset = dataset.map(sharegpt_format, remove_columns=original_columns)
+
+    def tokenize_function(examples):
+        return tokenizer(examples["text"], truncation=True, max_length=4096,
+                                 padding="max_length")
+
+    tokenized_dataset = dataset.map(tokenize_function, batched=True, num_proc=8, remove_columns=["text"])
+    tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1)
+
+    dataset_module = {}
+    dataset_module['train_dataset'] = tokenized_dataset['train']
+    dataset_module['eval_dataset'] = tokenized_dataset['test']
 
     config = {
         "output_dir": "./results",
@@ -60,15 +102,19 @@ def main():
         args=SFTConfig(**config),
         dataset_module=dataset_module,
         tokenizer=tokenizer,
-        max_seq_length=1024,
+        max_seq_length=4096,
         dataset_text_field="text",
         # Distillation specific arguments
         teacher_model=teacher_model,
         distillation_args= {"temperature": 2.0, "alpha": 0.5},
-        tokenizer_args={"max_length": 1024,
+        tokenizer_args={"max_length": 4096,
                         "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
                         }
     )
+    # from accelerate import Accelerator
+    # accelerator = Accelerator()
+    # device = accelerator.device
+
     trainer_stats = trainer.train()
 
 
