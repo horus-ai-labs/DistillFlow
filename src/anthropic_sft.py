@@ -22,19 +22,20 @@ def main():
         # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         use_unsloth=False,
-        output_attentions=False,
-        enable_liger_kernel=False
+        output_attentions=True,
+        enable_liger_kernel=True
         # quantization_bit=8,
         # quantization_method="gptq"
     )
     student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
+    print(student_model)
     teacher_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         quantization_bit=8,
         use_unsloth=False,
-        output_attentions=False,
-        enable_liger_kernel=False
+        output_attentions=True,
+        enable_liger_kernel=True
         # quantization_bit=8,
         # quantization_method="gptq"
     )
@@ -171,7 +172,7 @@ def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data
         "output_dir": "./results",
         "num_train_epochs": 3,
         "per_device_train_batch_size": 1,
-        "gradient_accumulation_steps": 1,
+        "gradient_accumulation_steps": 8,
         "save_steps": 1000,
         # "max_steps": 5000, # need to specify with streaming enabled
         "logging_steps": 1,
