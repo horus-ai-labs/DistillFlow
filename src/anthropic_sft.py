@@ -18,6 +18,7 @@ def main():
     student_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
+        use_unsloth = True,
         # quantization_bit=8,
         # quantization_method="gptq"
     )
@@ -26,6 +27,7 @@ def main():
         # model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         quantization_bit=8,
+        use_unsloth = True,
         # quantization_method="gptq"
     )
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
