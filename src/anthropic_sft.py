@@ -17,14 +17,16 @@ from distillflow.trainer.logits_distillation import LogitsTrainer
 def main():
     student_model_args = ModelArguments(
         model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
-        output_attentions=True
+        output_attentions=True,
+        enable_liger_kernel=True
         # quantization_bit=8,
         # quantization_method="gptq"
     )
     student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
     teacher_model_args = ModelArguments(
         model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
-        output_attentions=True
+        output_attentions=True,
+        enable_liger_kernel=True
         # quantization_bit=8,
         # quantization_method="gptq"
     )
