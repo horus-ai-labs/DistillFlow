@@ -23,7 +23,7 @@ def main():
         model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         use_unsloth=False,
         output_attentions=False,
-        enable_liger_kernel=True
+        enable_liger_kernel=False
         # quantization_bit=8,
         # quantization_method="gptq"
     )
@@ -34,7 +34,7 @@ def main():
         quantization_bit=8,
         use_unsloth=False,
         output_attentions=False,
-        enable_liger_kernel=True
+        enable_liger_kernel=False
         # quantization_bit=8,
         # quantization_method="gptq"
     )
