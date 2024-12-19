@@ -301,7 +301,7 @@ def load_model(
     # patch_config(config, tokenizer, model_args, init_kwargs, is_trainable)
 
     # TODO: Good optimization for huggingface models: https://github.com/linkedin/Liger-Kernel
-    apply_liger_kernel(config, model_args, is_trainable, require_logits=(finetuning_args.stage not in ["pt", "sft"]))
+    apply_liger_kernel(config, model_args, is_trainable, require_logits=True)
 
     model = None
     lazy_load = False
@@ -323,6 +323,7 @@ def load_model(
         init_kwargs["config"] = config
         init_kwargs["pretrained_model_name_or_path"] = model_args.model_name_or_path
         model = AutoModelForCausalLM.from_pretrained(**init_kwargs)
+        print("goes here")
 
     if not lazy_load:
         _patch_model(model, tokenizer, model_args, is_trainable)
