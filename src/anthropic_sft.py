@@ -25,7 +25,7 @@ def main():
     teacher_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-7B",#"meta-llama/Llama-3.2-1B-Instruct",
-        # quantization_bit=8,
+        quantization_bit=8,
         # quantization_method="gptq"
     )
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
