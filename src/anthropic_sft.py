@@ -2,12 +2,15 @@ from random import randint
 
 from datasets import Dataset
 from trl import SFTConfig
+from accelerate import Accelerator
 
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.model.args import ModelArguments
 from distillflow.model.finetuning_args import FinetuningArguments
 from distillflow.distill_datasets.loader import get_dataset
 from distillflow.distill_datasets.dataset_args import DatasetArgs
+from distillflow.distill_datasets.template import Alpaca, AlpacaArgs, ShareGpt, ShareGptArgs
+from distillflow.trainer.logits_distillation import LogitsTrainer
 from distillflow.distill_datasets.dataset_args import DataArgs
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.distill_datasets.template import ShareGpt, ShareGptArgs, AlpacaArgs, Alpaca
@@ -16,14 +19,18 @@ from distillflow.trainer.logits_distillation import LogitsTrainer
 
 def main():
     student_model_args = ModelArguments(
-        model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
+        use_unsloth=False,
         # quantization_bit=8,
         # quantization_method="gptq"
     )
     student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
     teacher_model_args = ModelArguments(
-        model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
-        # quantization_bit=8,
+        # model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
+        quantization_bit=8,
+        use_unsloth=False,
         # quantization_method="gptq"
     )
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
@@ -34,8 +41,51 @@ def main():
         train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42),
         test_size=1000,
         streaming=False)
+
     tokenizer = load_tokenizer(student_model_args)["tokenizer"]
-    dataset_module = get_dataset(data_args, tokenizer)
+    # dataset_module = get_dataset(data_args, tokenizer)
+
+    ################# for now just load dataset from hugging face.
+    from datasets import load_dataset
+    dataset = load_dataset("mlabonne/FineTome-100k", split='train')
+    dataset = dataset.shuffle(seed=42)
+
+    def sharegpt_format(example):
+        conversations = example['conversations']
+        message = []
+
+        if isinstance(conversations, list):
+            for conversation in conversations:
+                if isinstance(conversation, dict):
+                    if conversation.get('from') == 'human':
+                        message.append({"role": "user", "content": conversation.get('value', '')})
+                    elif conversation.get('from') == 'gpt':
+                        message.append({"role": "assistant", "content": conversation.get('value', '')})
+                    elif conversation.get('from') == 'system':
+                        message.insert(0, {"role": "system", "content": conversation.get('value', '')})
+
+        if not any(msg.get('role') == 'system' for msg in message):
+            message.insert(0, {"role": "system", "content": "You are a helpful assistant."})
+
+        text = tokenizer.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
+        return {"text": text}
+
+    tokenizer.chat_template = "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
+    print("Preprocessing and tokenizing dataset...")
+    original_columns = dataset.column_names
+    dataset = dataset.map(sharegpt_format, remove_columns=original_columns)
+
+    def tokenize_function(examples):
+        return tokenizer(examples["text"], truncation=True, max_length=4096,
+                                 padding="max_length")
+
+    tokenized_dataset = dataset.map(tokenize_function, batched=True, num_proc=8, remove_columns=["text"])
+    tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1)
+
+    dataset_module = {}
+    dataset_module['train_dataset'] = tokenized_dataset['train']
+    dataset_module['eval_dataset'] = tokenized_dataset['test']
 
     logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
     # layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
@@ -45,7 +95,7 @@ def layers_distill(teacher_model, student_model, dataset_module, tokenizer, data
         "output_dir": "./results",
         "num_train_epochs": 3,
         "per_device_train_batch_size": 1,
-        "gradient_accumulation_steps": 1,
+        "gradient_accumulation_steps": 8,
         "save_steps": 1000,
         # "max_steps": 15000, # need to specify with streaming enabled
         "logging_steps": 1,
@@ -97,15 +147,24 @@ def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data
         args=SFTConfig(**config),
         dataset_module=dataset_module,
         tokenizer=tokenizer,
-        max_seq_length=1024,
+        max_seq_length=4096,
         dataset_text_field="text",
         # Distillation specific arguments
         teacher_model=teacher_model,
-        distillation_args={"temperature": 2.0, "alpha": 0.5},
-        tokenizer_args={"max_length": 1024,
+        distillation_args= {"temperature": 2.0, "alpha": 0.5},
+        tokenizer_args={"max_length": 4096,
                         "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
                         }
     )
+    # from accelerate import Accelerator
+    accelerator = Accelerator()
+    device = accelerator.device
+    # print(device)
+    trainer = accelerator.prepare(trainer)
+
+    # print("student_model", student_model.device)
+    # print("teacher_model", teacher_model.device)
+
     trainer_stats = trainer.train()
 
 def print_random(dataset: Dataset):
