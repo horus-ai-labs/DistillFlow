@@ -22,7 +22,7 @@ def main():
         # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         use_unsloth=False,
-        output_attentions=True,
+        output_attentions=False,
         enable_liger_kernel=True
         # quantization_bit=8,
         # quantization_method="gptq"
@@ -33,7 +33,7 @@ def main():
         model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         quantization_bit=8,
         use_unsloth=False,
-        output_attentions=True,
+        output_attentions=False,
         enable_liger_kernel=True
         # quantization_bit=8,
         # quantization_method="gptq"
