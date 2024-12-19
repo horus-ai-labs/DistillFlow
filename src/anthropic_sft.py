@@ -115,6 +115,7 @@ def main():
     # from accelerate import Accelerator
     accelerator = Accelerator()
     device = accelerator.device
+    print(device)
     trainer = accelerator.prepare(trainer)
     trainer_stats = trainer.train()
 
