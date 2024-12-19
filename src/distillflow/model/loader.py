@@ -5,6 +5,7 @@ from types import MethodType
 from typing import TypedDict, Optional, Dict, Any
 
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+from prefect import task
 from transformers import PreTrainedTokenizer, ProcessorMixin, AutoConfig, AutoTokenizer, AutoProcessor, PreTrainedModel, \
     PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available
 from transformers.utils import is_torch_sdpa_available, is_flash_attn_2_available
@@ -13,6 +14,7 @@ from transformers.utils.versions import require_version
 from .adapter import init_adapter
 from .checkpoint import prepare_model_for_training
 from .finetuning_args import FinetuningArguments
+from .liger_kernel import apply_liger_kernel
 from .quantization import configure_quantization, QuantizationMethod
 from .unsloth import load_unsloth_pretrained_model
 from ..common.logger import get_logger
@@ -285,6 +287,7 @@ def _patch_model(
     # if not model_args.use_unsloth:
     #     print_attn_implementation(model.config)
 
+@task
 def load_model(
         model_args: ModelArguments,
         finetuning_args: FinetuningArguments,
@@ -298,7 +301,7 @@ def load_model(
     # patch_config(config, tokenizer, model_args, init_kwargs, is_trainable)
 
     # TODO: Good optimization for huggingface models: https://github.com/linkedin/Liger-Kernel
-    # apply_liger_kernel(config, model_args, is_trainable, require_logits=(finetuning_args.stage not in ["pt", "sft"]))
+    apply_liger_kernel(config, model_args, is_trainable, require_logits=(finetuning_args.stage not in ["pt", "sft"]))
 
     model = None
     lazy_load = False
