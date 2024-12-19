@@ -39,7 +39,7 @@ class LogitsTrainer(SFTTrainer):
                          max_seq_length=max_seq_length,
                          dataset_text_field=dataset_text_field)
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
         # self.teacher_model = self.teacher_model.to(inputs['labels'].device)
@@ -53,7 +53,7 @@ class LogitsTrainer(SFTTrainer):
 
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              student_outputs.loss)
-        return (custom_loss, student_outputs) if return_outputs else custom_loss
+        return custom_loss
 
     def distillation_loss(self, student_logits, teacher_logits, inputs, original_loss):
         student_logits, teacher_logits = student_logits.to(inputs['labels'].device), teacher_logits.to(inputs['labels'].device)
