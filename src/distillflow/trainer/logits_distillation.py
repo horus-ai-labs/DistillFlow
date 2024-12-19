@@ -57,6 +57,9 @@ class LogitsTrainer(SFTTrainer):
     def distillation_loss(self, student_logits, teacher_logits, inputs, original_loss):
         student_logits, teacher_logits = student_logits.to(inputs['labels'].device), teacher_logits.to(inputs['labels'].device)
 
+        # print("student_logits", student_logits.device)
+        # print("teacher_logits", teacher_logits.device)
+
         student_logits_scaled = student_logits / self.distillation_args["temperature"]
         teacher_logits_scaled = teacher_logits / self.distillation_args["temperature"]
 

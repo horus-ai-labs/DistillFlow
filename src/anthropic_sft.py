@@ -117,8 +117,12 @@ def main():
     # from accelerate import Accelerator
     accelerator = Accelerator()
     device = accelerator.device
-    print(device)
+    # print(device)
     trainer = accelerator.prepare(trainer)
+
+    # print("student_model", student_model.device)
+    # print("teacher_model", teacher_model.device)
+
     trainer_stats = trainer.train()
 
 
