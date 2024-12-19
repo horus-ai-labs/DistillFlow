@@ -52,7 +52,7 @@ class LogitsTrainer(SFTTrainer):
             teacher_outputs = teacher_model(**inputs)
 
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
-                                             student_outputs.loss)
+                                             inputs, student_outputs.loss)
         return (custom_loss, student_outputs) if return_outputs else custom_loss
 
     def distillation_loss(self, student_logits, teacher_logits, inputs, original_loss):
