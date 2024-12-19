@@ -2,6 +2,7 @@ from random import randint
 
 from datasets import Dataset
 from trl import SFTConfig
+from accelerate import Accelerator
 
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.model.args import ModelArguments
@@ -85,7 +86,7 @@ def main():
         "output_dir": "./results",
         "num_train_epochs": 3,
         "per_device_train_batch_size": 1,
-        "gradient_accumulation_steps": 1,
+        "gradient_accumulation_steps": 8,
         "save_steps": 1000,
         # "max_steps": 5000, # need to specify with streaming enabled
         "logging_steps": 1,
@@ -112,9 +113,9 @@ def main():
                         }
     )
     # from accelerate import Accelerator
-    # accelerator = Accelerator()
-    # device = accelerator.device
-
+    accelerator = Accelerator()
+    device = accelerator.device
+    trainer = accelerator.prepare(trainer)
     trainer_stats = trainer.train()
 
 
