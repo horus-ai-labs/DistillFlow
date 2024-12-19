@@ -92,9 +92,9 @@ def main():
     dataset_module['train_dataset'] = tokenized_dataset['train']
     dataset_module['eval_dataset'] = tokenized_dataset['test']
 
-    # logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+    logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
     # layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
-    attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+    # attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
 
 def attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
     config = {
