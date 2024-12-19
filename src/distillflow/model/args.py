@@ -88,7 +88,7 @@ class ModelArguments(QuantizationArguments):
     #     metadata={"help": "Which scaling strategy should be adopted for the RoPE embeddings."},
     # )
     flash_attn: Literal["auto", "disabled", "sdpa", "fa2"] = field(
-        default="fa2",
+        default="auto",
         metadata={"help": "Enable FlashAttention for faster training and inference."},
     )
     # shift_attn: bool = field(
