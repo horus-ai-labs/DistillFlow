@@ -81,8 +81,9 @@ auto-gptq = "0.2.0"
 runpod = "^1.7.7"
 unsloth = "^2024.12.4"
 prefect = "^3.1.7"
-liger-kernel = "^0.5.2"
-triton = { version = "*", markers = "sys_platform == 'linux'" }
+#liger-kernel = { version = "^0.5.2", platform = "linux" }
+#triton = { version = "*", platform = "linux" }
+#flash-attn = { version = "^2.7.2.post1", platform = "linux" }
 
 [build-system]
 requires = ["poetry-core"]
