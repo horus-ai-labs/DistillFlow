@@ -2,11 +2,11 @@
 name = "Distillflow"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Horus Labs <hello@horusailabs.com>"]
 readme = "README.rst"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "3.12.*"
 setuptools = "75.6.0"
 accelerate = "1.0.0"
 aiohappyeyeballs = "2.4.3"
@@ -78,12 +78,11 @@ yarl = "1.13.1"
 peft = "^0.13.2"
 wheel = "^0.44.0"
 auto-gptq = "0.2.0"
-runpod = "^1.7.7"
-unsloth = "^2024.12.4"
-prefect = "^3.1.7"
-#liger-kernel = { version = "^0.5.2", platform = "linux" }
-#triton = { version = "*", platform = "linux" }
-#flash-attn = { version = "^2.7.2.post1", platform = "linux" }
+runpod = { version = "^1.7.7", markers = "sys_platform == 'linux'" }
+unsloth = { version = "^2024.12.4", markers = "sys_platform == 'linux'" }
+liger-kernel = { version = "^0.5.2", markers = "sys_platform == 'linux'" }
+triton = { version = "*", markers = "sys_platform == 'linux'" }
+flash-attn = { version = "^2.7.2.post1", platform = "linux" }
 
 [build-system]
 requires = ["poetry-core"]

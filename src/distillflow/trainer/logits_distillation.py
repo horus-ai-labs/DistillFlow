@@ -6,6 +6,7 @@ from trl import SFTTrainer, SFTConfig
 import torch
 import torch.nn.functional as F
 
+from ..common import get_current_device
 from ..distill_datasets.loader import DatasetModule
 
 
@@ -27,9 +28,7 @@ class LogitsTrainer(SFTTrainer):
         self.tokenizer_args = tokenizer_args
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
-        self.device = None
-
-        self.device = None
+        self.device = get_current_device()
 
         if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
@@ -42,7 +41,7 @@ class LogitsTrainer(SFTTrainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
-        # self.teacher_model = self.teacher_model.to(inputs['labels'].device)
+        self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
         student_model = model.module if hasattr(model, 'module') else model
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model

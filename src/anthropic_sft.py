@@ -1,9 +1,11 @@
 from random import randint
 
+import torch
 from datasets import Dataset
 from trl import SFTConfig
 from accelerate import Accelerator
 
+from distillflow.common import get_current_device
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.model.args import ModelArguments
 from distillflow.model.finetuning_args import FinetuningArguments
@@ -21,6 +23,7 @@ def main():
     student_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
+        flash_attn="fa2",
         use_unsloth=False,
         output_attentions=True,
         # enable_liger_kernel=True
@@ -32,11 +35,12 @@ def main():
     teacher_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
-        quantization_bit=8,
+        flash_attn="fa2",
+        # quantization_bit=8,
         use_unsloth=False,
         output_attentions=True,
         # enable_liger_kernel=True
-        # quantization_bit=8,
+        quantization_bit=8,
         # quantization_method="gptq"
     )
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
@@ -93,9 +97,16 @@ def main():
     dataset_module['train_dataset'] = tokenized_dataset['train']
     dataset_module['eval_dataset'] = tokenized_dataset['test']
 
-    logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
-    # layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
-    # attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+    # trainer = logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+    trainer = layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+    # trainer = attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+
+    device = get_current_device()
+    if device.type != "mps":
+        accelerator = Accelerator()
+        trainer = accelerator.prepare(trainer)
+
+    trainer_stats = trainer.train()
 
 def attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
     config = {
@@ -116,7 +127,7 @@ def attention_distill(teacher_model, student_model, dataset_module, tokenizer, d
         "max_grad_norm": 1.0,
         "group_by_length": False
     }
-    trainer = AttentionTrainer(
+    return AttentionTrainer(
         model=student_model,
         args=SFTConfig(**config),
         dataset_module=dataset_module,
@@ -130,7 +141,6 @@ def attention_distill(teacher_model, student_model, dataset_module, tokenizer, d
                         "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
                         }
     )
-    trainer_stats = trainer.train()
 
 def layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
     config = {
@@ -151,7 +161,7 @@ def layers_distill(teacher_model, student_model, dataset_module, tokenizer, data
         "max_grad_norm": 1.0,
         "group_by_length": False
     }
-    trainer = LayersTrainer(
+    return LayersTrainer(
         model=student_model,
         args=SFTConfig(**config),
         dataset_module=dataset_module,
@@ -165,7 +175,6 @@ def layers_distill(teacher_model, student_model, dataset_module, tokenizer, data
                         "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
                         }
     )
-    trainer_stats = trainer.train()
 
 def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
     config = {
@@ -184,7 +193,7 @@ def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data
         "fp16": False,
         "bf16": True
     }
-    trainer = LogitsTrainer(
+    return LogitsTrainer(
         model=student_model,
         args=SFTConfig(**config),
         dataset_module=dataset_module,
@@ -198,16 +207,7 @@ def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data
                         "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
                         }
     )
-    # from accelerate import Accelerator
-    accelerator = Accelerator()
-    device = accelerator.device
-    # print(device)
-    trainer = accelerator.prepare(trainer)
 
-    # print("student_model", student_model.device)
-    # print("teacher_model", teacher_model.device)
-
-    trainer_stats = trainer.train()
 
 def print_random(dataset: Dataset):
     # print random rows
