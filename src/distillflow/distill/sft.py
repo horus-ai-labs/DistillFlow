@@ -3,12 +3,12 @@ from torch.utils.data import DataLoader
 from datasets import Dataset
 
 from accelerate import Accelerator
+from transformers import PreTrainedModel
 
 from .distiller import Distiller
-from ..student import Student
 
 class SFTWithoutKD(Distiller):
-    def __init__(self, student_model: Student):
+    def __init__(self, student_model: PreTrainedModel):
         """
         Initialize the student model.
         Args:

@@ -1,16 +1,15 @@
 import pandas as pd
+from transformers import PreTrainedModel
 
 from .distill import Distiller
-from .teacher import TeacherModel
 from datasets import Dataset
 from .distill_datasets import DistillDataset
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 class DistillFlow:
     """
     Main class to handle the distillation pipeline using Accelerate.
     """
-    def __init__(self, teacher_model: TeacherModel, distiller: Distiller, distill_dataset: DistillDataset):
+    def __init__(self, teacher_model: PreTrainedModel, distiller: Distiller, distill_dataset: DistillDataset):
         self.teacher_model = teacher_model
         self.distiller = distiller
         self.dataset = distill_dataset

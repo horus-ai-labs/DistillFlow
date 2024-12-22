@@ -1,11 +1,10 @@
 from trl import SFTTrainer
-from transformers import TrainingArguments
+from transformers import TrainingArguments, PreTrainedModel
 
-from ..student.llama3 import Llama3
 from .distiller import Distiller
 
 class SFT(Distiller):
-    def __init__(self, student_model=Llama3()):
+    def __init__(self, student_model: PreTrainedModel):
         """
         Initialize the student model.
         Args:

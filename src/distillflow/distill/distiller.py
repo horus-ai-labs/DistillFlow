@@ -1,10 +1,9 @@
 import torch
-
-from ..student import Student
+from transformers import PreTrainedModel
 
 
 class Distiller:
-    def __init__(self, student: Student):
+    def __init__(self, student: PreTrainedModel):
         self.device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
         self.student = student
 
