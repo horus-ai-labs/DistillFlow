@@ -105,9 +105,6 @@ class ShareGpt(Template):
                 response = json.loads(response)
             except json.JSONDecodeError as e:
                 raise ValueError(f"Invalid JSON in response: {response}") from e
-
-        print(response)
-
         if broken_data:
             logger.warning("Skipping this abnormal example.")
             prompt, response = [], []

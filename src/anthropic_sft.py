@@ -24,7 +24,7 @@ def main():
     student_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
-        flash_attn="fa2",
+        # flash_attn="fa2",
         use_unsloth=False,
         output_attentions=True,
         # enable_liger_kernel=True
@@ -36,22 +36,25 @@ def main():
     teacher_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
-        flash_attn="fa2",
+        # flash_attn="fa2",
         # quantization_bit=8,
         use_unsloth=False,
         output_attentions=True,
         # enable_liger_kernel=True
-        quantization_bit=8,
+        # quantization_bit=8,
         # quantization_method="gptq"
     )
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
 
-    data_args=DataArgs(
-        template=ShareGpt(),
-        # train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", dataset_text_field="text", seed=42),
-        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42, num_samples=100),
-        test_size=0.2,
-        streaming=False)
+    data_args = DataArgs(
+        seed=0,
+        train_datasets=[
+            DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42, template=ShareGpt()),
+            DatasetArgs(path="databricks/databricks-dolly-15k",dataset_text_field="text", seed=42, template=Alpaca(args=AlpacaArgs(prompt="instruction", query="context", response="response"))),
+        ],
+        test_size=1000,
+        streaming=False,
+    )
 
     tokenizer = load_tokenizer(student_model_args)["tokenizer"]
     dataset_module = get_dataset(data_args, tokenizer)
@@ -99,6 +102,7 @@ def main():
     # dataset_module['eval_dataset'] = tokenized_dataset['test']
 
     trainer = logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
+
     # trainer = layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
     # trainer = attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
 

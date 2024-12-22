@@ -1,12 +1,18 @@
+import json
+import os
 from functools import partial
-from typing import TypedDict, Optional, Dict, Any
+from typing import TypedDict, Optional, Dict, Any, Sequence, Literal, Union, List
 
 import numpy as np
-from datasets import DatasetDict, load_dataset, Dataset
-from transformers import PreTrainedTokenizer
+from datasets import DatasetDict, load_dataset, Dataset, IterableDataset, concatenate_datasets, interleave_datasets
+from transformers import PreTrainedTokenizer, training_args
+from transformers.utils import cached_file
 
 from .dataset_args import DatasetArgs, DataArgs
 from ..common import get_logger
+from ..model.args import ModelArguments
+
+DATA_CONFIG = "dataset_info.json"
 
 logger = get_logger(__name__)
 
@@ -55,7 +61,7 @@ def _load_dataset(
         column_names = list(next(iter(dataset)).keys())
 
         dataset = dataset.map(
-            partial(data_args.template.convert),
+            partial(dataset_args.template.convert),
             batched=False,
             remove_columns=column_names,
             load_from_cache_file=dataset_args.load_from_cache_file
@@ -92,10 +98,10 @@ def get_dataset(data_args: DataArgs,
                 tokenizer: PreTrainedTokenizer) -> DatasetModule:
     # Load and preprocess dataset
     # with training_args.main_process_first(desc="load dataset"):
-    dataset = _load_dataset(data_args.train_dataset, data_args, tokenizer)
+    dataset = _get_merged_dataset(data_args.train_datasets, data_args, tokenizer)
     eval_dataset = None
-    if data_args.eval_dataset is not None:
-        eval_dataset = _load_dataset(data_args.eval_dataset, data_args, tokenizer)
+    if data_args.eval_datasets:
+        eval_dataset = _get_merged_dataset(data_args.eval_datasets, data_args, tokenizer)
 
     # with training_args.main_process_first(desc="pre-process dataset"):
     #     dataset = _get_preprocessed_dataset(
@@ -111,16 +117,16 @@ def get_dataset(data_args: DataArgs,
     dataset_dict = {}
 
     if eval_dataset is None:
-        dataset_dict = split_dataset(dataset, data_args, data_args.train_dataset.seed)
+        dataset_dict = split_dataset(dataset, data_args, data_args.seed)
     else:
         if data_args.streaming:
-            eval_dataset = eval_dataset.shuffle(buffer_size=data_args.buffer_size, seed=data_args.eval_dataset.seed)
+            eval_dataset = eval_dataset.shuffle(buffer_size=data_args.buffer_size, seed=data_args.seed)
 
         dataset_dict["validation"] = eval_dataset
 
         if dataset is not None:
             if data_args.streaming:
-                dataset = dataset.shuffle(buffer_size=data_args.buffer_size, seed=data_args.train_dataset.seed)
+                dataset = dataset.shuffle(buffer_size=data_args.buffer_size, seed=data_args.train_datasets.seed)
 
             dataset_dict["train"] = dataset
 
@@ -142,3 +148,44 @@ def get_dataset(data_args: DataArgs,
         dataset_module["eval_dataset"] = dataset_dict["validation"]
 
     return dataset_module
+
+def _get_merged_dataset(
+    dataset_list: List[DatasetArgs],
+    data_args: DataArgs,
+    tokenizer: PreTrainedTokenizer
+) -> Optional[Union["Dataset", "IterableDataset"]]:
+    r"""
+    Gets the merged datasets in the standard format.
+    """
+    datasets = []
+    for dataset_attr in dataset_list:
+        datasets.append(_load_dataset(dataset_attr, data_args, tokenizer))
+
+    return merge_dataset(datasets, data_args, data_args.seed)
+
+def merge_dataset(all_datasets: List[Union["Dataset", "IterableDataset"]], data_args: "DataArgs"
+                  , seed) -> Union["Dataset", "IterableDataset"]:
+    r"""
+    Merges multiple datasets to a unified dataset.
+    """
+    if len(all_datasets) == 1:
+        return all_datasets[0]
+    elif data_args.mix_strategy == "concat":
+        if data_args.streaming:
+            logger.warning("The samples between different datasets will not be mixed in streaming mode.")
+        return concatenate_datasets(all_datasets)
+    elif data_args.mix_strategy.startswith("interleave"):
+        if not data_args.streaming:
+            logger.warning("We recommend using `mix_strategy=concat` in non-streaming mode.")
+
+        return interleave_datasets(
+            datasets=all_datasets,
+            probabilities=data_args.interleave_probs,
+            seed=seed,
+            stopping_strategy="first_exhausted" if data_args.mix_strategy.endswith("under") else "all_exhausted",
+        )
+    else:
+        raise ValueError("Unknown mixing strategy: {}.".format(data_args.mix_strategy))
+
+
+

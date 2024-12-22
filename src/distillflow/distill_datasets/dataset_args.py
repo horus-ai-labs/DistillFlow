@@ -1,23 +1,22 @@
 from dataclasses import dataclass, field
 from enum import Enum, unique
-from typing import Optional
+from typing import Optional, Literal, Dict, Any, List
 
 from .template import Template
 
 @dataclass
 class DatasetArgs:
-    # dataset_name: str
-    # load_from: Literal["hf_hub", "ms_hub", "om_hub", "script", "file"]
-
     path: str = ""
     num_samples: Optional[int] = None
     dataset_text_field: str = None
     load_from_cache_file: bool = True
 
-    # formatting: Literal["alpaca", "sharegpt"] = "alpaca"
+    formatting: Literal["alpaca", "sharegpt"] = "alpaca"
+    template: Optional[Template] = None
     # ranking: bool = False
     split: str = "train"
     seed: int = 0
+
     # system: Optional[str] = None
     # tools: Optional[str] = None
 
@@ -26,18 +25,17 @@ class DataArgs:
     r"""
     Arguments pertaining to what data we are going to input our model for training and evaluation.
     """
-
-    template: Optional[Template] = field(
-        default=None,
-        metadata={"help": "Which template to use for constructing prompts in training and inference."},
+    seed: Optional[int] = field(
+        default=0,
+        metadata={"help": "Auth token to log in with Hugging Face Hub."},
     )
-    train_dataset: Optional[DatasetArgs] = field(
+    train_datasets: Optional[List[DatasetArgs]] = field(
         default=None,
-        metadata={"help": "The name of dataset(s) to use for training. Use commas to separate multiple datasets."},
+        metadata={"help": "The names of dataset(s) to use for training. Provide as a list of DatasetArgs."},
     )
-    eval_dataset: Optional[DatasetArgs] = field(
+    eval_datasets: Optional[List[DatasetArgs]] = field(
         default=None,
-        metadata={"help": "The name of dataset(s) to use for evaluation. Use commas to separate multiple datasets."},
+        metadata={"help": "The names of dataset(s) to use for evaluation. Provide as a list of DatasetArgs."},
     )
     cache_dir: Optional[str] = field(
         default=None,
@@ -47,7 +45,7 @@ class DataArgs:
         default=None,
         metadata={"help": "Auth token to log in with Hugging Face Hub."},
     )
-    # dataset_dir: str = field(
+        # dataset_dir: str = field(
     #     default="data",
     #     metadata={"help": "Path to the folder containing the datasets."},
     # )
@@ -67,18 +65,18 @@ class DataArgs:
         default=False,
         metadata={"help": "Enable dataset streaming."},
     )
-    buffer_size: int = field(
+    buffer_size: Optional[int] = field(
         default=16384,
         metadata={"help": "Size of the buffer to randomly sample examples from in dataset streaming."},
     )
-    # mix_strategy: Literal["concat", "interleave_under", "interleave_over"] = field(
-    #     default="concat",
-    #     metadata={"help": "Strategy to use in dataset mixing (concat/interleave) (undersampling/oversampling)."},
-    # )
-    # interleave_probs: Optional[str] = field(
-    #     default=None,
-    #     metadata={"help": "Probabilities to sample data from datasets. Use commas to separate multiple datasets."},
-    # )
+    mix_strategy: Optional[Literal["concat", "interleave_under", "interleave_over"]] = field(
+        default="concat",
+        metadata={"help": "Strategy to use in dataset mixing (concat/interleave) (undersampling/oversampling)."},
+    )
+    interleave_probs: Optional[str] = field(
+        default=None,
+        metadata={"help": "Probabilities to sample data from datasets. Use commas to separate multiple datasets."},
+    )
     # overwrite_cache: bool = field(
     #     default=False,
     #     metadata={"help": "Overwrite the cached training and evaluation sets."},
@@ -124,19 +122,22 @@ class DataArgs:
     #     metadata={"help": "Path to save or load the tokenized datasets."},
     # )
 
+    # def __init__(self):
+    #     self.dataset_dir = None
+
     def __post_init__(self):
         def split_arg(arg):
             if isinstance(arg, str):
                 return [item.strip() for item in arg.split(",")]
             return arg
 
-        self.train_dataset = split_arg(self.train_dataset)
-        self.eval_dataset = split_arg(self.eval_dataset)
+        self.train_datasets = split_arg(self.train_datasets)
+        self.eval_datasets = split_arg(self.eval_datasets)
 
-        if self.train_dataset is None and self.test_size > 1e-6:
+        if self.train_datasets is None and self.test_size > 1e-6:
             raise ValueError("Cannot specify `val_size` if `dataset` is None.")
 
-        if self.eval_dataset is not None and self.test_size > 1e-6:
+        if self.eval_datasets is not None and self.test_size > 1e-6:
             raise ValueError("Cannot specify `val_size` if `eval_dataset` is not None.")
 
         # if self.interleave_probs is not None:
@@ -158,3 +159,4 @@ class DataArgs:
 
         # if self.mask_history and self.train_on_prompt:
         #     raise ValueError("`mask_history` is incompatible with `train_on_prompt`.")
+
