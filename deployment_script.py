@@ -37,11 +37,15 @@ print("Endpoints are ", runpod.get_endpoints())
 # Launch the pod
 print("Launching pod...")
 
-resp = runpod.create_pod(name="generated from script", image_name="runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04",
+resp = runpod.create_pod(name="generated from script", image_name="runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04",
                          gpu_type_id=args.gpu_type, gpu_count=args.gpu_count, start_ssh=True, volume_in_gb=20,container_disk_in_gb=50,
                          env={"GITHUB_REPO": GITHUB_REPO_URL},
                          docker_args=(
-                             "/bin/bash -c 'apt update && rm -rf DistillFlow && git clone https://github.com/horus-ai-labs/DistillFlow.git && cd DistillFlow && apt install -y python3.12-dev && pip install poetry && poetry lock --no-update && poetry install && poetry shell && poetry run python src/anthropic_sft.py'")
+                             "/bin/bash -c 'apt update && rm -rf DistillFlow && "
+                             "git clone https://github.com/horus-ai-labs/DistillFlow.git && "
+                             "cd DistillFlow && apt install -y python3.12-dev && "
+                             "pip install poetry && poetry lock --no-update && poetry install && "
+                             "poetry shell && poetry run python src/anthropic_sft.py && pip install flash-attn'")
     )
 pod_id = resp['id']
 
