@@ -33,7 +33,7 @@ auto-gptq = "0.2.0"
 runpod = { version = "^1.7.7", markers = "sys_platform == 'linux'" }
 unsloth = { version = "^2024.12.4", markers = "sys_platform == 'linux'" }
 liger-kernel = { version = "^0.5.2", markers = "sys_platform == 'linux'" }
-triton = { version = "*", markers = "sys_platform == 'linux'" }
+triton = { version = "3.0.0", markers = "sys_platform == 'linux'" }
 flash-attn = { version = "^2.7.2.post1", platform = "linux" }
 
 [build-system]
