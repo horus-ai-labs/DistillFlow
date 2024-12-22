@@ -1,6 +1,7 @@
 import runpod
 import time
 import argparse
+import os
 
 parser = argparse.ArgumentParser(description="Deploy a Python project to RunPod.")
 # parser.add_argument(
@@ -24,7 +25,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 # Replace with your RunPod API Key
-RUNPOD_API_KEY = "rpa_AWR0U7BFVTL843TA4EQY9VUGN74A6WCMTYW5TPVM24z4zn"
+RUNPOD_API_KEY = os.getenv("RUNPOD_API_KEY")
 
 # GitHub repository URL and script settings
 GITHUB_REPO_URL = "https://github.com/horus-ai-labs/DistillFlow.git"
