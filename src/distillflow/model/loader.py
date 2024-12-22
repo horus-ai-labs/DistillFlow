@@ -5,7 +5,6 @@ from types import MethodType
 from typing import TypedDict, Optional, Dict, Any
 
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
-from prefect import task
 from transformers import PreTrainedTokenizer, ProcessorMixin, AutoConfig, AutoTokenizer, AutoProcessor, PreTrainedModel, \
     PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available
 from transformers.utils import is_torch_sdpa_available, is_flash_attn_2_available
@@ -119,7 +118,6 @@ def _configure_attn_implementation(
     if getattr(config, "model_type", None) == "gemma2" and is_trainable:
         if model_args.flash_attn == "auto" or model_args.flash_attn == "fa2":
             if is_flash_attn_2_available():
-                require_version("transformers>=4.42.4", "To fix: pip install transformers>=4.42.4")
                 require_version("flash_attn>=2.6.3", "To fix: pip install flash_attn>=2.6.3")
                 if model_args.flash_attn != "fa2":
                     logger.warning("Gemma-2 should use flash attention 2, change `flash_attn` to fa2.")
@@ -287,7 +285,6 @@ def _patch_model(
     # if not model_args.use_unsloth:
     #     print_attn_implementation(model.config)
 
-@task
 def load_model(
         model_args: ModelArguments,
         finetuning_args: FinetuningArguments,

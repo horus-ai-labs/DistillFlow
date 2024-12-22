@@ -53,7 +53,7 @@ class LayersTrainer(SFTTrainer):
                          max_seq_length=max_seq_length,
                          dataset_text_field=dataset_text_field)
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         model_inputs = {
             "input_ids": inputs["input_ids"],
             "attention_mask": inputs["attention_mask"],
@@ -62,7 +62,7 @@ class LayersTrainer(SFTTrainer):
         student_outputs = model(**model_inputs, labels=labels, output_hidden_states=True)
         original_loss = student_outputs.loss
 
-        self.teacher_model = self.teacher_model.to(self.device)
+        self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
 
