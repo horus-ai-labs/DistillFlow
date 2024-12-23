@@ -43,9 +43,9 @@ resp = runpod.create_pod(name="generated from script", image_name="runpod/pytorc
                          docker_args=(
                              "/bin/bash -c 'apt update && rm -rf DistillFlow && "
                              "git clone https://github.com/horus-ai-labs/DistillFlow.git && "
-                             "cd DistillFlow && apt install -y python3.12-dev && "
-                             "pip install poetry && poetry lock --no-update && poetry install && "
-                             "poetry shell && poetry run python src/anthropic_sft.py && pip install flash-attn'")
+                             "cd DistillFlow && apt install -y python3.12-dev &&  pip install flash-attn &&"
+                             "pip install poetry && poetry lock --no-update && poetry install &&"
+                             "poetry run python src/anthropic_sft.py'")
     )
 pod_id = resp['id']
 
