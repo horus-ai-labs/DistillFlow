@@ -50,8 +50,8 @@ def main():
     data_args=DataArgs(
         template=ShareGpt(),
         # train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", dataset_text_field="text", seed=42),
-        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42),
-        test_size=1000,
+        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42, num_samples=100),
+        test_size=0.2,
         streaming=False)
 
     tokenizer = load_tokenizer(student_model_args)["tokenizer"]
@@ -191,7 +191,7 @@ def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data
         "output_dir": "./results",
         "num_train_epochs": 3,
         "per_device_train_batch_size": 1,
-        "gradient_accumulation_steps": 8,
+        "gradient_accumulation_steps": 1,
         "save_steps": 1000,
         # "max_steps": 5000, # need to specify with streaming enabled
         "logging_steps": 1,
@@ -213,7 +213,7 @@ def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data
         # Distillation specific arguments
         teacher_model=teacher_model,
         distillation_args= {"temperature": 2.0, "alpha": 0.5},
-        tokenizer_args={"max_length": 4096,
+        tokenizer_args={"max_length": 1024,
                         "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
                         }
     )
