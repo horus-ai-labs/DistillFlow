@@ -2,6 +2,7 @@ from random import randint
 
 import torch
 from datasets import Dataset
+from exceptiongroup import catch
 from trl import SFTConfig
 from accelerate import Accelerator
 
@@ -49,7 +50,7 @@ def main():
     data_args=DataArgs(
         template=ShareGpt(),
         # train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", dataset_text_field="text", seed=42),
-        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42, num_samples=100),
+        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42),
         test_size=1000,
         streaming=False)
 
@@ -110,8 +111,11 @@ def main():
     trainer_stats = trainer.train()
 
     # upload to s3
-    s3_utils.upload_to_s3('distillflow-output', 'src/results')
 
+    try:
+        s3_utils.upload_to_s3('distillflow-output', 'src/results')
+    except Exception as e:
+        print("received exception while uploading results", e)
 
 
 def attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):

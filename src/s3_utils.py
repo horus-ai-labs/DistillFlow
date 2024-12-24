@@ -17,7 +17,7 @@ def upload_to_s3(bucket_name, dir_path='src/results'):
 
     # Validate credentials
     if not aws_access_key or not aws_secret_key:
-        raise EnvironmentError("AWS credentials not found in environment variables.")
+        EnvironmentError("AWS credentials not found in environment variables.")
     s3_client = boto3.client(
         's3',
         aws_access_key_id=aws_access_key,
@@ -41,7 +41,7 @@ def upload_to_s3(bucket_name, dir_path='src/results'):
                 print(f"Uploaded: {file_path} -> s3://{bucket_name}/{s3_key}")
             except Exception as e:
                 print(f"An error occurred: {e}")
-                return False
+                raise Exception("Cannot upload file")
                 # # Use boto3 client
     # try:
     #     s3_client = boto3.client(
