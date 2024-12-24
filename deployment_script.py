@@ -26,6 +26,8 @@ args = parser.parse_args()
 
 # Replace with your RunPod API Key
 RUNPOD_API_KEY = os.getenv("RUNPOD_API_KEY")
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
 
 # GitHub repository URL and script settings
 GITHUB_REPO_URL = "https://github.com/horus-ai-labs/DistillFlow.git"
@@ -39,7 +41,7 @@ print("Launching pod...")
 
 resp = runpod.create_pod(name="generated from script", image_name="runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04",
                          gpu_type_id=args.gpu_type, gpu_count=args.gpu_count, start_ssh=True, volume_in_gb=20,container_disk_in_gb=50,
-                         env={"GITHUB_REPO": GITHUB_REPO_URL},
+                         env={"GITHUB_REPO": GITHUB_REPO_URL, "S3_ACCESS_KEY": S3_ACCESS_KEY, "S3_SECRET_KEY": S3_SECRET_KEY},
                          docker_args=(
                              "/bin/bash -c 'apt update && rm -rf DistillFlow && "
                              "git clone https://github.com/horus-ai-labs/DistillFlow.git && "
