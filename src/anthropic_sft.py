@@ -5,6 +5,7 @@ from datasets import Dataset
 from trl import SFTConfig
 from accelerate import Accelerator
 
+import s3_utils
 from distillflow.common import get_current_device
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.model.args import ModelArguments
@@ -48,7 +49,7 @@ def main():
     data_args=DataArgs(
         template=ShareGpt(),
         # train_dataset=DatasetArgs(path="databricks/databricks-dolly-15k", dataset_text_field="text", seed=42),
-        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42),
+        train_dataset=DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42, num_samples=100),
         test_size=1000,
         streaming=False)
 
@@ -107,6 +108,11 @@ def main():
         trainer = accelerator.prepare(trainer)
 
     trainer_stats = trainer.train()
+
+    # upload to s3
+    s3_utils.upload_to_s3('distillflow-output', 'src/results')
+
+
 
 def attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args):
     config = {
