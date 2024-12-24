@@ -2,7 +2,6 @@ from random import randint
 
 import torch
 from datasets import Dataset
-from exceptiongroup import catch
 from trl import SFTConfig
 from accelerate import Accelerator
 
