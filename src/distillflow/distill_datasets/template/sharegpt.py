@@ -22,7 +22,7 @@ class ShareGptArgs:
 
 class ShareGpt(Template):
 
-    def __init__(self, args: ShareGptArgs = ShareGptArgs()):
+    def __init__(self, args: Optional[ShareGptArgs] = ShareGptArgs()):
         self.args = args
 
     def convert(self, example: Dict[str, Any]) -> Dict[str, Any]:

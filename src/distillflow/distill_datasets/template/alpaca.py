@@ -29,7 +29,7 @@ Expected data format
 ]
 '''
 class Alpaca(Template):
-    def __init__(self, args: AlpacaArgs = AlpacaArgs()):
+    def __init__(self, args: Optional[AlpacaArgs] = AlpacaArgs()):
         self.args = args
 
     def convert(self, example: Dict[str, Any]) -> Dict[str, Any]:

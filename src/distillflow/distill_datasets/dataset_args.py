@@ -8,7 +8,6 @@ from .template import Template
 class DatasetArgs:
     path: str = ""
     num_samples: Optional[int] = None
-    dataset_text_field: str = None
     load_from_cache_file: bool = True
 
     formatting: Literal["alpaca", "sharegpt"] = "alpaca"
@@ -44,6 +43,10 @@ class DataArgs:
     hf_hub_token: Optional[str] = field(
         default=None,
         metadata={"help": "Auth token to log in with Hugging Face Hub."},
+    )
+    text_field: Optional[str] = field(
+        default="text",
+        metadata={"help": "Name of the field key to convert the dataset."},
     )
         # dataset_dir: str = field(
     #     default="data",

@@ -24,85 +24,40 @@ def main():
     student_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
-        # flash_attn="fa2",
+        flash_attn="fa2",
         use_unsloth=False,
         output_attentions=True,
-        # enable_liger_kernel=True
-        # quantization_bit=8,
-        # quantization_method="gptq"
+        enable_liger_kernel=True
     )
     student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
     print(student_model)
     teacher_model_args = ModelArguments(
         # model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
         model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
-        # flash_attn="fa2",
-        # quantization_bit=8,
+        flash_attn="fa2",
         use_unsloth=False,
         output_attentions=True,
-        # enable_liger_kernel=True
-        # quantization_bit=8,
-        # quantization_method="gptq"
+        enable_liger_kernel=True,
+        quantization_bit=8,
+        quantization_method="gptq"
     )
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
 
     data_args = DataArgs(
         seed=0,
         train_datasets=[
-            DatasetArgs(path="mlabonne/FineTome-100k", dataset_text_field="text", seed=42, template=ShareGpt()),
-            DatasetArgs(path="databricks/databricks-dolly-15k",dataset_text_field="text", seed=42, template=Alpaca(args=AlpacaArgs(prompt="instruction", query="context", response="response"))),
+            DatasetArgs(path="mlabonne/FineTome-100k", seed=42, template=ShareGpt()),
+            DatasetArgs(path="databricks/databricks-dolly-15k", seed=42, template=Alpaca(args=AlpacaArgs(prompt="instruction", query="context", response="response"))),
         ],
         test_size=1000,
         streaming=False,
+        text_field="text"
     )
 
     tokenizer = load_tokenizer(student_model_args)["tokenizer"]
     dataset_module = get_dataset(data_args, tokenizer)
 
-    # # ################# for now just load dataset from hugging face.
-    # # from datasets import load_dataset
-    # # dataset = load_dataset("mlabonne/FineTome-100k", split='train')
-    # # dataset = dataset.shuffle(seed=42)
-    # #
-    # # def sharegpt_format(example):
-    # #     conversations = example['conversations']
-    # #     message = []
-    # #
-    # #     if isinstance(conversations, list):
-    # #         for conversation in conversations:
-    # #             if isinstance(conversation, dict):
-    # #                 if conversation.get('from') == 'human':
-    # #                     message.append({"role": "user", "content": conversation.get('value', '')})
-    # #                 elif conversation.get('from') == 'gpt':
-    # #                     message.append({"role": "assistant", "content": conversation.get('value', '')})
-    # #                 elif conversation.get('from') == 'system':
-    # #                     message.insert(0, {"role": "system", "content": conversation.get('value', '')})
-    # #
-    # #     if not any(msg.get('role') == 'system' for msg in message):
-    # #         message.insert(0, {"role": "system", "content": "You are a helpful assistant."})
-    # #
-    # #     text = tokenizer.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
-    # #     return {"text": text}
-    # #
-    # # tokenizer.chat_template = "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
-    # #
-    # # print("Preprocessing and tokenizing dataset...")
-    # # original_columns = dataset.column_names
-    # # dataset = dataset.map(sharegpt_format, remove_columns=original_columns)
-    # #
-    # # def tokenize_function(examples):
-    # #     return tokenizer(examples["text"], truncation=True, max_length=4096,
-    # #                              padding="max_length")
-    # #
-    # # tokenized_dataset = dataset.map(tokenize_function, batched=True, num_proc=8, remove_columns=["text"])
-    # # tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1)
-    #
-    # dataset_module = {}
-    # dataset_module['train_dataset'] = tokenized_dataset['train']
-    # dataset_module['eval_dataset'] = tokenized_dataset['test']
-
     trainer = logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
-
     # trainer = layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
     # trainer = attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
 
