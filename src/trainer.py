@@ -86,10 +86,6 @@ def main():
         accelerator = Accelerator()
         trainer = accelerator.prepare(trainer)
 
-
-    for key, value in dataset_module.items():
-        value = value.to(device)
-
     # Train model
     trainer_stats = trainer.train()
 

@@ -39,7 +39,7 @@ class LogitsTrainer(SFTTrainer):
                          dataset_text_field=dataset_text_field)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
-        # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
+        inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
         self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
