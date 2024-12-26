@@ -84,7 +84,7 @@ def main():
     device = get_current_device()
     if device.type != "mps":
         accelerator = Accelerator()
-        trainer = accelerator.prepare([trainer])
+        trainer = accelerator.prepare(trainer)
 
     # Train model
     trainer_stats = trainer.train()
