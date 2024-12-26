@@ -23,7 +23,7 @@ data:
     - path: mlabonne/FineTome-100k
       seed: 42
       template: sharegpt
-  test_size: 0.2
+  test_size: 0.1
   streaming: false
 
 distill:

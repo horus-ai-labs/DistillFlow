@@ -48,7 +48,6 @@ def main():
     teacher_model_args = ModelArguments(**config["teacher_model"])
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
 
-
     student_model = student_model.to(device)
     teacher_model = teacher_model.to(device)
 
