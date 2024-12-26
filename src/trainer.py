@@ -37,6 +37,9 @@ def main():
     args = parse_args()
     config = load_config(args.config)
 
+    # Handle device
+    device = get_current_device()
+
     # Load student model
     student_model_args = ModelArguments(**config["student_model"])
     student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
@@ -45,6 +48,9 @@ def main():
     teacher_model_args = ModelArguments(**config["teacher_model"])
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
 
+
+    student_model = student_model.to(device)
+    teacher_model = teacher_model.to(device)
 
     # Load data arguments
     train_datasets = [
@@ -80,8 +86,6 @@ def main():
     elif distillation_type == "attention":
         trainer = attention_distill(distill_config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args)
 
-    # Handle device
-    device = get_current_device()
     if device.type != "mps":
         accelerator = Accelerator()
         trainer = accelerator.prepare(trainer)
