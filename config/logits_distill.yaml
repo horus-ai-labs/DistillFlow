@@ -1,6 +1,6 @@
 student_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-  model_name_or_path: Qwen/Qwen2-0.5B
+  model_name_or_path: Qwen/Qwen2.5-0.5B
   flash_attn: fa2
   use_unsloth: false
   output_attentions: false
@@ -8,7 +8,7 @@ student_model:
 
 teacher_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
-  model_name_or_path: Qwen/Qwen2-1.5B
+  model_name_or_path: Qwen/Qwen2.5-1.5B
   flash_attn: fa2
   use_unsloth: false
   output_attentions: false
