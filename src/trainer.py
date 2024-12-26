@@ -92,6 +92,8 @@ def main():
     # Train model
     trainer_stats = trainer.train()
 
+    trainer.save_model(config["distill"]["sft_config"]["output_dir"])
+
     # upload to s3
     try:
         s3_utils.upload_to_s3('distillflow-output', f'src/{distill_config["output_dir"]}')
