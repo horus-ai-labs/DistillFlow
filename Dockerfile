@@ -27,7 +27,7 @@ RUN poetry lock --no-update && \
     poetry install
 
 # Command to run the script
-CMD ["poetry", "run", "python", "src/anthropic_sft.py"]
+
 # Update package lists
 # RUN apt update
 # # Install dependencies for DistillFlow

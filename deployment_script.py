@@ -18,8 +18,20 @@ parser.add_argument(
 parser.add_argument(
     "--gpu-count",
     required=False,
-    default=2, # Example default value
+    default=2,
     help="The GPU type to use. Defaults to 2 if not specified."
+)
+parser.add_argument(
+    "--volume-in-gb",
+    required=False,
+    default=50,
+    help="The container volume in gb"
+)
+parser.add_argument(
+    "--container-disk-in-gb",
+    required=False,
+    default=50,
+    help="The container disk in gb"
 )
 
 args = parser.parse_args()
@@ -39,16 +51,9 @@ print("Endpoints are ", runpod.get_endpoints())
 # Launch the pod
 print("Launching pod...")
 
-resp = runpod.create_pod(name="generated from script", image_name="runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04",
+resp = runpod.create_pod(name="generated from script", image_name="horuslabs/distillflow:runpod-linux-v2",
                          gpu_type_id=args.gpu_type, gpu_count=args.gpu_count, start_ssh=True, volume_in_gb=20,container_disk_in_gb=50,
-                         env={"GITHUB_REPO": GITHUB_REPO_URL, "S3_ACCESS_KEY": S3_ACCESS_KEY, "S3_SECRET_KEY": S3_SECRET_KEY},
-                         docker_args=(
-                             "/bin/bash -c 'apt update && rm -rf DistillFlow && "
-                             "git clone https://github.com/horus-ai-labs/DistillFlow.git && "
-                             "cd DistillFlow && apt install -y python3.12-dev &&  pip install flash-attn &&"
-                             "pip install poetry && poetry lock --no-update && poetry install &&"
-                             "poetry run python src/anthropic_sft.py && sleep infinity'")
-    )
+                         env={"GITHUB_REPO": GITHUB_REPO_URL, "S3_ACCESS_KEY": S3_ACCESS_KEY, "S3_SECRET_KEY": S3_SECRET_KEY})
 pod_id = resp['id']
 
 time.sleep(60)
