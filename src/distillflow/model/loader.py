@@ -51,7 +51,7 @@ class TokenizerModule(TypedDict):
     tokenizer: PreTrainedTokenizer
     processor: Optional[ProcessorMixin]
 
-def load_tokenizer(model_args: ModelArguments) -> TokenizerModule:
+def load_tokenizer(model_args: ModelArguments, chat_template: str = None) -> TokenizerModule:
     r"""
     Loads pretrained tokenizer and optionally loads processor.
 
@@ -102,6 +102,8 @@ def load_tokenizer(model_args: ModelArguments) -> TokenizerModule:
     if processor is not None and "Processor" not in processor.__class__.__name__:
         processor = None
 
+    if chat_template is not None:
+        tokenizer.chat_template = chat_template
     return {"tokenizer": tokenizer, "processor": processor}
 
 def _register_autoclass(config: PretrainedConfig, model: "PreTrainedModel", tokenizer: "PreTrainedTokenizer"):
@@ -320,7 +322,6 @@ def load_model(
         init_kwargs["config"] = config
         init_kwargs["pretrained_model_name_or_path"] = model_args.model_name_or_path
         model = AutoModelForCausalLM.from_pretrained(**init_kwargs)
-        print("goes here")
 
     if not lazy_load:
         _patch_model(model, tokenizer, model_args, is_trainable)

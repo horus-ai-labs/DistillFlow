@@ -26,6 +26,9 @@ data:
   test_size: 0.1
   streaming: false
 
+tokenizer:
+  template: "{% for message in messages %}{{ '<|im_start|>' + message['role'] + '<|im_end|>\n' + '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
 distill:
   type: logits
   max_seq_length: 4096

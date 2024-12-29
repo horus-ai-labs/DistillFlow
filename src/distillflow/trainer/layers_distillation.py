@@ -21,14 +21,12 @@ class LayersTrainer(SFTTrainer):
                  dataset_text_field: Optional[str] = None,
                  teacher_model: Optional[Union[PreTrainedModel, nn.Module, str]] = None,
                  distillation_args: Optional[dict] = None,
-                 tokenizer_args: Optional[dict] = None,
                  strategy="interpolate",
                  selection_indices=None,
                  weights=None
                  ):
         self.teacher_model = teacher_model
         self.distillation_args = distillation_args
-        self.tokenizer_args = tokenizer_args
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
         self.device = get_current_device()

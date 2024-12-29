@@ -21,13 +21,12 @@ class LogitsTrainer(SFTTrainer):
                  dataset_text_field: Optional[str] = None,
                  teacher_model: Optional[Union[PreTrainedModel, nn.Module, str]] = None,
                  distillation_args: Optional[dict] = None,
-                 tokenizer_args: Optional[dict] = None,
                  ):
         self.teacher_model = teacher_model
         self.distillation_args = distillation_args
-        self.tokenizer_args = tokenizer_args
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
+        self.max_seq_length = max_seq_length
         self.device = get_current_device()
 
         if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
@@ -41,6 +40,7 @@ class LogitsTrainer(SFTTrainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
+        # self.print_input(inputs)
         self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
         student_model = model.module if hasattr(model, 'module') else model
@@ -49,6 +49,9 @@ class LogitsTrainer(SFTTrainer):
         student_outputs = student_model(**inputs)
         with torch.no_grad():
             teacher_outputs = teacher_model(**inputs)
+
+        # self.print_output(student_outputs)
+        # self.print_output(teacher_outputs)
 
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              inputs, student_outputs.loss)
@@ -64,6 +67,15 @@ class LogitsTrainer(SFTTrainer):
             F.log_softmax(student_logits_scaled, dim=-1),
             F.softmax(teacher_logits_scaled, dim=-1),
             reduction='batchmean'
-        ) * (self.distillation_args["temperature"] ** 2) / self.tokenizer_args["max_length"]
+        ) * (self.distillation_args["temperature"] ** 2) / self.max_seq_length
 
         return self.distillation_args["alpha"] * loss_kd + (1 - self.distillation_args["alpha"]) * original_loss
+
+
+    def print_input(self, inputs):
+        input_texts = self.tokenizer.batch_decode(inputs['input_ids'], skip_special_tokens=True)
+        print(input_texts)
+
+    def print_output(self, outputs):
+        output_text = self.tokenizer.batch_decode(torch.argmax(outputs.logits, dim=-1), skip_special_tokens=True)
+        print(output_text)

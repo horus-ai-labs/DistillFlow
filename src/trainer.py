@@ -70,7 +70,7 @@ def main():
     )
 
     # Load tokenizer and dataset
-    tokenizer = load_tokenizer(student_model_args)["tokenizer"]
+    tokenizer = load_tokenizer(student_model_args, chat_template=config["tokenizer"]["template"])["tokenizer"]
     dataset_module = get_dataset(data_args, tokenizer)
 
     # Initialize trainer
@@ -112,9 +112,6 @@ def attention_distill(config, teacher_model, student_model, dataset_module, toke
         # Distillation specific arguments
         teacher_model=teacher_model,
         distillation_args=distillation_args,
-        tokenizer_args={"max_length": max_seq_length,
-                        "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
-                        }
     )
 
 def layers_distill(config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args):
@@ -127,10 +124,7 @@ def layers_distill(config, teacher_model, student_model, dataset_module, tokeniz
         dataset_text_field=text_field,
         # Distillation specific arguments
         teacher_model=teacher_model,
-        distillation_args= distillation_args,
-        tokenizer_args={"max_length": max_seq_length,
-                        "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
-                        }
+        distillation_args= distillation_args
     )
 
 def logits_distill(config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args):
@@ -143,10 +137,7 @@ def logits_distill(config, teacher_model, student_model, dataset_module, tokeniz
         dataset_text_field=text_field,
         # Distillation specific arguments
         teacher_model=teacher_model,
-        distillation_args= distillation_args,
-        tokenizer_args={"max_length": max_seq_length,
-                        "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
-                        }
+        distillation_args= distillation_args
     )
 
 if __name__ == "__main__":

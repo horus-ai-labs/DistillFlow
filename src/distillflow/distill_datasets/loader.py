@@ -68,7 +68,7 @@ def _load_dataset(
         )
 
         if data_args.text_field is not None:
-            dataset = dataset.map(partial(to_text, data_args.text_field, tokenizer), batched=False, load_from_cache_file=dataset_args.load_from_cache_file)
+            dataset = dataset.map(partial(to_text, data_args.text_field, tokenizer), batched=False, load_from_cache_file=dataset_args.load_from_cache_file, remove_columns=dataset.column_names)
         return dataset
 
 def to_text(field_name, tokenizer: PreTrainedTokenizer, example: Dict[str, Any]) -> Dict[str, Any]:

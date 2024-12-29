@@ -18,7 +18,7 @@ teacher_model:
 
 data:
   seed: 0
-  text_field: "text"
+  text_field: 'text'
   train_datasets:
     - path: mlabonne/FineTome-100k
       seed: 42
@@ -32,7 +32,10 @@ data:
         response: response
   test_size: 0.2
   streaming: false
-  
+
+tokenizer:
+  template: "{% for message in messages %}{{ '<|im_start|>' + message['role'] + '<|im_end|>\n' + '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
 distill:
   type: layers
   max_seq_length: 4096
@@ -46,8 +49,8 @@ distill:
     logging_steps: 1
     learning_rate: 2.0e-5
     weight_decay: 0.05
-    warmup_ratio: 0.1
-    lr_scheduler_type: 'cosine'
+    warmup_ratio: 0.2
+    lr_scheduler_type: 'linear'
     resume_from_checkpoint: None  # Set to a path or True to resume from the latest checkpoint
     fp16: False
     bf16: True
