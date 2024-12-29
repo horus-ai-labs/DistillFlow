@@ -1,20 +1,20 @@
 student_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-  model_name_or_path: Qwen/Qwen2.5-0.5B
+  model_name_or_path: Qwen/Qwen2-0.5B
   flash_attn: fa2
   use_unsloth: false
-  output_attentions: false
+  output_attentions: true
 #  enable_liger_kernel: true
 
 teacher_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
-  model_name_or_path: Qwen/Qwen2.5-1.5B
+  model_name_or_path: Qwen/Qwen2-1.5B
   flash_attn: fa2
   use_unsloth: false
-  output_attentions: false
-#  enable_liger_kernel: true
-#  quantization_bit: 8
-#  quantization_method: gptq
+  output_attentions: true
+  enable_liger_kernel: true
+  quantization_bit: 8
+  quantization_method: gptq
 
 data:
   seed: 0
@@ -27,7 +27,7 @@ data:
   streaming: false
 
 tokenizer:
-  template: "{% for message in messages %}{{ '<|im_start|>' + message['role'] + '<|im_end|>\n' + '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+  template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
 distill:
   type: logits
@@ -46,8 +46,6 @@ distill:
     resume_from_checkpoint: None  # Set to a path or True to resume from the latest checkpoint
     fp16: False
     bf16: True
-    max_grad_norm: 1.0
-    group_by_length: False
   distillation_args:
     temperature: 2.0
     alpha: 0.5

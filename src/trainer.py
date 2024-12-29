@@ -1,3 +1,5 @@
+from functools import partial
+
 import yaml
 import argparse
 
@@ -55,18 +57,14 @@ def main():
     # Load data arguments
     train_datasets = [
         DatasetArgs(
-            path=ds["path"],
-            seed=ds["seed"],
-            template=ShareGpt(ShareGptArgs(**ds.get("template_args", {}))) if ds["template"] == "sharegpt" else Alpaca(AlpacaArgs(**ds.get("template_args", {})))
+            template=ShareGpt(ShareGptArgs(**ds.get("template_args", {}))) if ds["template"] == "sharegpt" else Alpaca(AlpacaArgs(**ds.get("template_args", {}))),
+            **{k: v for k, v in ds.items() if k not in ["template"]}
         ) for ds in config["data"]["train_datasets"]
     ]
 
     data_args = DataArgs(
-        seed=config["data"]["seed"],
         train_datasets=train_datasets,
-        test_size=config["data"]["test_size"],
-        streaming=config["data"]["streaming"],
-        text_field = config["data"]["text_field"],
+        **{k: v for k, v in config["data"].items() if k not in ["train_datasets"]}
     )
 
     # Load tokenizer and dataset
@@ -79,6 +77,7 @@ def main():
     text_field = config["data"]["text_field"]
     max_seq_length, distillation_args = config["distill"]["max_seq_length"], config["distill"]["distillation_args"]
     trainer = None
+    tokenize(dataset_module, tokenizer, max_seq_length, text_field)
     if distillation_type == "logits":
         trainer = logits_distill(distill_config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args)
     elif distillation_type == "layers":
@@ -100,6 +99,15 @@ def main():
         s3_utils.upload_to_s3('distillflow-output', f'src/{distill_config["output_dir"]}')
     except Exception as e:
         print("received exception while uploading results", e)
+
+def tokenize(dataset_module, tokenizer, max_length: int, text_field: str):
+    dataset_module["train_dataset"] = dataset_module["train_dataset"].map(partial(tokenize_function, tokenizer, max_length, text_field), batched=True, num_proc=8, remove_columns=[text_field])
+    dataset_module["eval_dataset"] = dataset_module["eval_dataset"].map(partial(tokenize_function, tokenizer, max_length, text_field), batched=True, num_proc=8, remove_columns=[text_field])
+
+def tokenize_function(tokenizer, max_length, text_field, examples):
+    return tokenizer(examples[text_field], truncation=True, max_length=max_length,
+                     padding="max_length")
+
 
 def attention_distill(config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args):
     return AttentionTrainer(

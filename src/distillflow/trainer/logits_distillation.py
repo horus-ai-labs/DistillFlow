@@ -40,7 +40,7 @@ class LogitsTrainer(SFTTrainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
-        # self.print_input(inputs)
+        self.print_input(inputs)
         self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
         student_model = model.module if hasattr(model, 'module') else model
@@ -50,8 +50,8 @@ class LogitsTrainer(SFTTrainer):
         with torch.no_grad():
             teacher_outputs = teacher_model(**inputs)
 
-        # self.print_output(student_outputs)
-        # self.print_output(teacher_outputs)
+        self.print_output(student_outputs)
+        self.print_output(teacher_outputs)
 
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              inputs, student_outputs.loss)
@@ -73,9 +73,11 @@ class LogitsTrainer(SFTTrainer):
 
 
     def print_input(self, inputs):
-        input_texts = self.tokenizer.batch_decode(inputs['input_ids'], skip_special_tokens=True)
+        print("INPUT:::::")
+        input_texts = self.tokenizer.batch_decode(inputs['input_ids'], skip_special_tokens=False)
         print(input_texts)
 
     def print_output(self, outputs):
-        output_text = self.tokenizer.batch_decode(torch.argmax(outputs.logits, dim=-1), skip_special_tokens=True)
+        print("OUTPUT:::::")
+        output_text = self.tokenizer.batch_decode(torch.argmax(outputs.logits, dim=-1), skip_special_tokens=False)
         print(output_text)
