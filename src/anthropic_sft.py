@@ -23,8 +23,8 @@ from distillflow.trainer.logits_distillation import LogitsTrainer
 
 def main():
     student_model_args = ModelArguments(
-        model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
-        # model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
+        # model_name_or_path="HuggingFaceTB/SmolLM2-135M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        model_name_or_path="Qwen/Qwen2-0.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         flash_attn="fa2",
         use_unsloth=False,
         # output_attentions=True,
@@ -32,8 +32,8 @@ def main():
     )
     student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(), is_trainable=True)
     teacher_model_args = ModelArguments(
-        model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
-        # model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
+        # model_name_or_path="HuggingFaceTB/SmolLM2-360M-Instruct",#"meta-llama/Llama-3.2-1B-Instruct",
+        model_name_or_path="Qwen/Qwen2-1.5B",#"meta-llama/Llama-3.2-1B-Instruct",
         flash_attn="fa2",
         use_unsloth=False,
         output_attentions=True,
@@ -46,7 +46,7 @@ def main():
     data_args = DataArgs(
         seed=0,
         train_datasets=[
-            DatasetArgs(path="mlabonne/FineTome-100k", seed=42, template=ShareGpt()),
+            DatasetArgs(path="mlabonne/FineTome-100k", seed=0, template=ShareGpt()),
             # DatasetArgs(path="databricks/databricks-dolly-15k", seed=42, template=Alpaca(args=AlpacaArgs(prompt="instruction", query="context", response="response"))),
         ],
         test_size=1000,
@@ -58,7 +58,7 @@ def main():
     # dataset_module = get_dataset(data_args, tokenizer)
 
     dataset = load_dataset("mlabonne/FineTome-100k", split='train')
-    dataset = dataset.shuffle(seed=42)
+    dataset = dataset.shuffle(seed=0)
 
     tokenizer.chat_template = "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 

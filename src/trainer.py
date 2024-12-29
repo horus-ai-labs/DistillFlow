@@ -48,7 +48,16 @@ def main():
     # Load teacher model
     teacher_model_args = ModelArguments(**config["teacher_model"])
     teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
+    # import torch
+    # from transformers import AutoModelForCausalLM
+    # model_kwargs = {"torch_dtype": torch.bfloat16}
+    # teacher_model = AutoModelForCausalLM.from_pretrained(config["teacher_model"]["model_name_or_path"], **model_kwargs)
+    # teacher_model.eval()
 
+    # print(teacher_model.config)
+    # exit()
+
+    #TODO: hugging face recommends another way for placing models on a device. Check this again!
     student_model = student_model.to(device)
     teacher_model = teacher_model.to(device)
 
@@ -57,6 +66,7 @@ def main():
         DatasetArgs(
             path=ds["path"],
             seed=ds["seed"],
+            formatting='sharegpt',
             template=ShareGpt(ShareGptArgs(**ds.get("template_args", {}))) if ds["template"] == "sharegpt" else Alpaca(AlpacaArgs(**ds.get("template_args", {})))
         ) for ds in config["data"]["train_datasets"]
     ]
@@ -71,7 +81,16 @@ def main():
 
     # Load tokenizer and dataset
     tokenizer = load_tokenizer(student_model_args, chat_template=config["tokenizer"]["template"])["tokenizer"]
-    dataset_module = get_dataset(data_args, tokenizer)
+    # tokenizer.
+
+    def tokenizer_function(examples):
+        return tokenizer(examples["text"], truncation=True, max_length=config["distill"]["max_seq_length"],
+                                 padding="max_length")
+
+    dataset_module = get_dataset(data_args, tokenizer, tokenize=True, tokenizer_function=tokenizer_function)
+
+    print(dataset_module["train_dataset"][100])
+    # exit()
 
     # Initialize trainer
     distillation_type = config["distill"]["type"]
@@ -132,7 +151,7 @@ def logits_distill(config, teacher_model, student_model, dataset_module, tokeniz
         model=student_model,
         args=SFTConfig(**config),
         dataset_module=dataset_module,
-        tokenizer=tokenizer,
+        tokenizer=None,
         max_seq_length=max_seq_length,
         dataset_text_field=text_field,
         # Distillation specific arguments

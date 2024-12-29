@@ -95,7 +95,9 @@ def split_dataset(dataset: Dataset, data_args: DataArgs, seed: int) -> DatasetDi
         return DatasetDict({"train": dataset["train"], "validation": dataset["test"]})
 
 def get_dataset(data_args: DataArgs,
-                tokenizer: PreTrainedTokenizer) -> DatasetModule:
+                tokenizer: PreTrainedTokenizer,
+                tokenize=False,
+                tokenizer_function=None) -> DatasetModule:
     # Load and preprocess dataset
     # with training_args.main_process_first(desc="load dataset"):
     dataset = _get_merged_dataset(data_args.train_datasets, data_args, tokenizer)
@@ -146,6 +148,22 @@ def get_dataset(data_args: DataArgs,
 
     if "validation" in dataset_dict:
         dataset_module["eval_dataset"] = dataset_dict["validation"]
+
+    if tokenize and tokenizer_function is not None:
+
+        dataset_module["train_dataset"] = dataset_module["train_dataset"].map(tokenizer_function,
+                                                                              batched=True, num_proc=8,
+                                                                              remove_columns=["text"])
+
+        dataset_module["eval_dataset"] = dataset_module["eval_dataset"].map(tokenizer_function,
+                                                                              batched=True, num_proc=8,
+                                                                              remove_columns=["text"])
+
+
+    else:
+        print("Please pass a valid tokenizer function.")
+        exit()
+
 
     return dataset_module
 

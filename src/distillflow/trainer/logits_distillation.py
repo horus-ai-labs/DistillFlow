@@ -37,9 +37,21 @@ class LogitsTrainer(SFTTrainer):
                          max_seq_length=max_seq_length,
                          dataset_text_field=dataset_text_field)
 
+    def pad_logits(self, student_logits, teacher_logits):
+        student_size, teacher_size = student_logits.size(-1), teacher_logits.size(-1)
+        if student_size != teacher_size:
+            pad_size = abs(student_size - teacher_size)
+            pad_tensor = torch.zeros((*teacher_logits.shape[:-1], pad_size), dtype=teacher_logits.dtype,
+                                     device=teacher_logits.device)
+            return (
+            torch.cat([student_logits, pad_tensor], dim=-1), teacher_logits) if student_size < teacher_size else (
+            student_logits, torch.cat([teacher_logits, pad_tensor], dim=-1))
+        return student_logits, teacher_logits
+
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
+        # print("Printing the Input")
         # self.print_input(inputs)
         self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
@@ -50,8 +62,19 @@ class LogitsTrainer(SFTTrainer):
         with torch.no_grad():
             teacher_outputs = teacher_model(**inputs)
 
+            # print(teacher_outputs.keys())
+            #
+            # teacher_outputs2 = teacher_model.generate(**inputs, max_new_tokens=200,
+            #                                             temperature=0.7,
+            #                                             repetition_penalty=1.2)
+
+        # print("Printing the Student Output: " + str(student_model))
         # self.print_output(student_outputs)
+        # print("Printing the Teacher Output" + str(teacher_model))
         # self.print_output(teacher_outputs)
+        # print("Printing the Teacher Output 2")
+        # print(self.tokenizer.batch_decode(teacher_outputs2))
+        # exit()
 
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              inputs, student_outputs.loss)
@@ -59,6 +82,7 @@ class LogitsTrainer(SFTTrainer):
 
     def distillation_loss(self, student_logits, teacher_logits, inputs, original_loss):
         student_logits, teacher_logits = student_logits.to(inputs['labels'].device), teacher_logits.to(inputs['labels'].device)
+        student_logits, teacher_logits = self.pad_logits(student_logits, teacher_logits)
 
         student_logits_scaled = student_logits / self.distillation_args["temperature"]
         teacher_logits_scaled = teacher_logits / self.distillation_args["temperature"]
@@ -73,9 +97,9 @@ class LogitsTrainer(SFTTrainer):
 
 
     def print_input(self, inputs):
-        input_texts = self.tokenizer.batch_decode(inputs['input_ids'], skip_special_tokens=True)
+        input_texts = self.tokenizer.batch_decode(inputs['input_ids'], skip_special_tokens=False)
         print(input_texts)
 
     def print_output(self, outputs):
-        output_text = self.tokenizer.batch_decode(torch.argmax(outputs.logits, dim=-1), skip_special_tokens=True)
+        output_text = self.tokenizer.batch_decode(torch.argmax(outputs.logits, dim=-1), skip_special_tokens=False)
         print(output_text)
