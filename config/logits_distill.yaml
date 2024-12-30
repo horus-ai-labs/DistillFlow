@@ -31,7 +31,7 @@ tokenizer:
 
 distill:
   type: logits
-  max_seq_length: 4096
+  max_seq_length: 2048
   sft_config:
     output_dir: './results'
     num_train_epochs: 3

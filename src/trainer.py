@@ -86,7 +86,7 @@ def main():
 
     dataset_module = get_dataset(data_args, tokenizer, tokenize=True, tokenizer_function=tokenizer_function)
 
-    print(dataset_module["train_dataset"][100])
+    # print(dataset_module["train_dataset"][100])
     # exit()
 
     # Initialize trainer
