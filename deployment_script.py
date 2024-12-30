@@ -52,7 +52,7 @@ print("Endpoints are ", runpod.get_endpoints())
 print("Launching pod...")
 
 resp = runpod.create_pod(name="generated from script", image_name="horuslabs/distillflow:runpod-linux-v2",
-                         gpu_type_id=args.gpu_type, gpu_count=args.gpu_count, start_ssh=True, volume_in_gb=20,container_disk_in_gb=50,
+                         gpu_type_id=args.gpu_type, gpu_count=args.gpu_count, start_ssh=True, volume_in_gb=args.volume_in_gb,container_disk_in_gb=args.container_disk_in_gb,
                          env={"GITHUB_REPO": GITHUB_REPO_URL, "S3_ACCESS_KEY": S3_ACCESS_KEY, "S3_SECRET_KEY": S3_SECRET_KEY})
 pod_id = resp['id']
 

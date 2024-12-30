@@ -51,8 +51,6 @@ class LogitsTrainer(SFTTrainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
-        # print("Printing the Input")
-        # self.print_input(inputs)
         self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
         student_model = model.module if hasattr(model, 'module') else model
@@ -97,9 +95,11 @@ class LogitsTrainer(SFTTrainer):
 
 
     def print_input(self, inputs):
+        print("INPUT:::::")
         input_texts = self.tokenizer.batch_decode(inputs['input_ids'], skip_special_tokens=False)
         print(input_texts)
 
     def print_output(self, outputs):
+        print("OUTPUT:::::")
         output_text = self.tokenizer.batch_decode(torch.argmax(outputs.logits, dim=-1), skip_special_tokens=False)
         print(output_text)
