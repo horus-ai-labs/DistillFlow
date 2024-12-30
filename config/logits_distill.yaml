@@ -39,8 +39,8 @@ distill:
     per_device_eval_batch_size: 1
     gradient_accumulation_steps: 8
     eval_strategy: steps
-    eval_steps: 100
-    save_steps: 2000
+    eval_steps: 200
+    save_steps: 200
     logging_steps: 1
     learning_rate: 2.0e-5
     weight_decay: 0.05
