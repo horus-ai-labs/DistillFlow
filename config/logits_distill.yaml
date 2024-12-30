@@ -39,14 +39,14 @@ distill:
     per_device_eval_batch_size: 1
     gradient_accumulation_steps: 8
     eval_strategy: steps
-    eval_steps: 200
-    save_steps: 200
+    eval_steps: 1000
+    save_steps: 1000
     logging_steps: 1
     learning_rate: 2.0e-5
     weight_decay: 0.05
     warmup_ratio: 0.1
     lr_scheduler_type: 'cosine'
-    resume_from_checkpoint: None  # Set to a path or True to resume from the latest checkpoint
+    resume_from_checkpoint: '/app/results/checkpoint-1000'  # Set to a path or True to resume from the latest checkpoint
     fp16: False
     bf16: True
   distillation_args:
