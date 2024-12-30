@@ -45,6 +45,8 @@ def _get_init_kwargs(model_args: ModelArguments) -> Dict[str, Any]:
         "cache_dir": model_args.cache_dir,
         "revision": model_args.model_revision,
         "token": model_args.hf_hub_token,
+        "torch_dtype": torch.bfloat16,
+        "attn_implementation": "flash_attention_2"
     }
 
 class TokenizerModule(TypedDict):
