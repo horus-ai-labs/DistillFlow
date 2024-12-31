@@ -1,5 +1,6 @@
 from typing import Optional, Union
 import torch.nn as nn
+from accelerate import Accelerator
 from datasets import IterableDataset
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from trl import SFTTrainer, SFTConfig
@@ -13,6 +14,7 @@ from ..distill_datasets.loader import DatasetModule
 # TODO: Change default value behaviour. Throw warning to users for default values.
 class LogitsTrainer(SFTTrainer):
     def __init__(self,
+                 accelerator: Accelerator,
                  model: Union[PreTrainedModel, nn.Module, str],
                  dataset_module: DatasetModule,
                  args: Optional[SFTConfig] = None,
@@ -22,12 +24,25 @@ class LogitsTrainer(SFTTrainer):
                  teacher_model: Optional[Union[PreTrainedModel, nn.Module, str]] = None,
                  distillation_args: Optional[dict] = None,
                  ):
+        self.accelerator = accelerator
         self.teacher_model = teacher_model
         self.distillation_args = distillation_args
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
         self.max_seq_length = max_seq_length
         self.device = get_current_device()
+
+        if self.accelerator is not None:
+            self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
+            if self.is_deepspeed_enabled:
+                if not (
+                        getattr(teacher_model.pretrained_model, "is_loaded_in_8bit", False)
+                        or getattr(teacher_model.pretrained_model, "is_loaded_in_4bit", False)
+                ):  # quantized models are already set on the correct device
+                    self.teacher_model = self._prepare_deepspeed(self.teacher_model)
+            else:
+                self.teacher_model = self.accelerator.prepare_model(self.teacher_model, evaluation_mode=True)
+                model = self.accelerator.prepare_model(model)
 
         if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
@@ -51,7 +66,9 @@ class LogitsTrainer(SFTTrainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
-        self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
+
+        # self.print_input(inputs)
+        # self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
         student_model = model.module if hasattr(model, 'module') else model
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
@@ -66,9 +83,9 @@ class LogitsTrainer(SFTTrainer):
             #                                             temperature=0.7,
             #                                             repetition_penalty=1.2)
 
-        # print("Printing the Student Output: " + str(student_model))
+        # print("Printing the Student Output: ")
         # self.print_output(student_outputs)
-        # print("Printing the Teacher Output" + str(teacher_model))
+        # print("Printing the Teacher Output: ")
         # self.print_output(teacher_outputs)
         # print("Printing the Teacher Output 2")
         # print(self.tokenizer.batch_decode(teacher_outputs2))
@@ -103,3 +120,13 @@ class LogitsTrainer(SFTTrainer):
         print("OUTPUT:::::")
         output_text = self.tokenizer.batch_decode(torch.argmax(outputs.logits, dim=-1), skip_special_tokens=False)
         print(output_text)
+
+    def print_generate_output(self, input_ids):
+        outputs = self.teacher_model.generate(
+            input_ids=input_ids,
+            max_length=512,
+            num_beams=5,
+            early_stopping=True
+        )
+        decoded_outputs = self.tokenizer.batch_decode(outputs, skip_special_tokens=False)
+        print(decoded_outputs)

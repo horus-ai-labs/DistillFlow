@@ -2,11 +2,14 @@ import math
 import os
 from contextlib import nullcontext
 from types import MethodType
-from typing import TypedDict, Optional, Dict, Any
+from typing import TypedDict, Optional, Dict, Any, Tuple
 
+import transformers
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 from transformers import PreTrainedTokenizer, ProcessorMixin, AutoConfig, AutoTokenizer, AutoProcessor, PreTrainedModel, \
-    PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available
+    PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available, PreTrainedTokenizerBase
+from transformers.integrations import is_deepspeed_zero3_enabled
+from transformers.modeling_utils import is_fsdp_enabled
 from transformers.utils import is_torch_sdpa_available, is_flash_attn_2_available
 from transformers.utils.versions import require_version
 
@@ -14,6 +17,7 @@ from .adapter import init_adapter
 from .checkpoint import prepare_model_for_training
 from .finetuning_args import FinetuningArguments
 from .liger_kernel import apply_liger_kernel
+import torch.nn.functional as F
 from .quantization import configure_quantization, QuantizationMethod
 from .unsloth import load_unsloth_pretrained_model
 from ..common.logger import get_logger
@@ -21,14 +25,6 @@ from .args import ModelArguments
 import torch
 
 from ..common import count_parameters, infer_optim_dtype
-from transformers.models.llama.modeling_llama import (
-    Cache,
-    LlamaAttention,
-    LlamaFlashAttention2,
-    LlamaSdpaAttention,
-    apply_rotary_pos_emb,
-    repeat_kv,
-)
 
 logger = get_logger(__name__)
 
@@ -46,14 +42,17 @@ def _get_init_kwargs(model_args: ModelArguments) -> Dict[str, Any]:
         "revision": model_args.model_revision,
         "token": model_args.hf_hub_token,
         "torch_dtype": torch.bfloat16,
-        "attn_implementation": "flash_attention_2"
     }
 
 class TokenizerModule(TypedDict):
     tokenizer: PreTrainedTokenizer
     processor: Optional[ProcessorMixin]
 
-def load_tokenizer(model_args: ModelArguments, chat_template: str = None) -> TokenizerModule:
+def patch_tokenizer(tokenizer: "PreTrainedTokenizer") -> None:
+    if "PreTrainedTokenizerBase" not in str(tokenizer._pad.__func__):
+        tokenizer._pad = MethodType(PreTrainedTokenizerBase._pad, tokenizer)
+
+def load_tokenizer(model_args: ModelArguments, template: str = None) -> TokenizerModule:
     r"""
     Loads pretrained tokenizer and optionally loads processor.
 
@@ -90,11 +89,11 @@ def load_tokenizer(model_args: ModelArguments, chat_template: str = None) -> Tok
     else:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # patch_tokenizer(tokenizer)
+    patch_tokenizer(tokenizer)
     try:
         processor = AutoProcessor.from_pretrained(model_args.model_name_or_path, **init_kwargs)
         # config = AutoConfig.from_pretrained(model_args.model_name_or_path, **init_kwargs)
-        # patch_processor(processor, config, tokenizer, model_args)
+        setattr(processor, "tokenizer", tokenizer)
     except Exception as e:
         logger.warning("Processor was not found: {}.".format(e))
         processor = None
@@ -104,8 +103,8 @@ def load_tokenizer(model_args: ModelArguments, chat_template: str = None) -> Tok
     if processor is not None and "Processor" not in processor.__class__.__name__:
         processor = None
 
-    if chat_template is not None:
-        tokenizer.chat_template = chat_template
+    if template is not None:
+        tokenizer.chat_template = template
     return {"tokenizer": tokenizer, "processor": processor}
 
 def _register_autoclass(config: PretrainedConfig, model: "PreTrainedModel", tokenizer: "PreTrainedTokenizer"):
@@ -158,6 +157,69 @@ def _configure_attn_implementation(
     else:
         setattr(config, "_attn_implementation", requested_attn_implementation)
 
+def get_seqlens_in_batch(attention_mask: "torch.Tensor") -> "torch.Tensor":
+    r"""
+    Gets the sequnce lengths in the current batch.
+
+    e.g.
+    ```python
+    # input
+    [
+        [1, 1, 2, 2, 2, 0],
+        [1, 2, 2, 3, 3, 3],
+    ]
+    # output
+    [2, 3, 1, 2, 3]
+    ```
+    """
+    bsz = attention_mask.size(0)
+    dtype, device = attention_mask.dtype, attention_mask.device
+    max_num = torch.max(attention_mask).item()
+    counts: "torch.Tensor" = torch.zeros((bsz, max_num), dtype=dtype, device=device)
+    for i in range(max_num):
+        counts[:, i] = torch.sum(attention_mask == (i + 1), dim=-1)
+
+    counts = counts.flatten()
+    seqlens = counts[counts.nonzero().squeeze(dim=-1)]
+    return seqlens
+
+
+def get_unpad_data(attention_mask: "torch.Tensor") -> Tuple["torch.Tensor", "torch.Tensor", int]:
+    r"""
+    Prepares the indices and seqlens for flash attn varlen function.
+
+    Returns:
+        indices: indices of non-masked tokens from the flattened sequence.
+        cu_seqlens: the cumulative sequence lengths in the current batch, always starts from 0.
+        max_seqlen_in_batch: the largest seqlen in the current batch.
+
+    e.g.
+    ```python
+    # input
+    [
+        [1, 1, 2, 2, 2, 0],
+        [1, 2, 2, 3, 3, 3],
+    ]
+    # output
+    [0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11]
+    [0, 2, 5, 6, 8, 11]
+    3
+    ```
+    """
+    seqlens_in_batch = get_seqlens_in_batch(attention_mask)
+    indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()
+    max_seqlen_in_batch = seqlens_in_batch.max().item()
+    cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.int32), (1, 0))
+    return indices, cu_seqlens, max_seqlen_in_batch
+
+def configure_packing(model_args: "ModelArguments", is_trainable: bool) -> None:
+    if not is_trainable or not model_args.block_diag_attn:
+        return
+
+    require_version("transformers>=4.43.0,<=4.46.1", "To fix: pip install transformers>=4.43.0,<=4.46.1")
+    transformers.modeling_flash_attention_utils._get_unpad_data = get_unpad_data
+    logger.info("Using block diagonal attention for sequence packing without cross-attention.")
+
 
 def _patch_config(
         config: PretrainedConfig,
@@ -182,7 +244,7 @@ def _patch_config(
     configure_quantization(config, tokenizer, model_args, init_kwargs)
     # configure_moe(config, model_args, is_trainable)
     # configure_visual_model(config)
-    # configure_packing(config, model_args, is_trainable)
+    configure_packing(model_args, is_trainable)
 
     if model_args.use_cache and not is_trainable:
         setattr(config, "use_cache", True)
@@ -200,12 +262,12 @@ def _patch_config(
     #     raise ValueError("Please download llava models with hf-compatible format: https://huggingface.co/llava-hf")
 
     # deepspeed zero3 is not compatible with low_cpu_mem_usage
-    init_kwargs["low_cpu_mem_usage"] = model_args.low_cpu_mem_usage # and (not is_deepspeed_zero3_enabled())
+    init_kwargs["low_cpu_mem_usage"] = model_args.low_cpu_mem_usage and (not is_deepspeed_zero3_enabled())
 
     # cast data type of the model if:
     # 1. not deepspeed zero3 and not fsdp (keep zero3 or fsdp in float32)
     # 2. quantization_bit is not None (qlora)
-    if model_args.quantization_bit is not None:
+    if (not is_deepspeed_zero3_enabled() and not is_fsdp_enabled()) or model_args.quantization_bit is not None:
         init_kwargs["torch_dtype"] = model_args.compute_dtype
 
         if init_kwargs["low_cpu_mem_usage"]:  # device map requires low_cpu_mem_usage=True
@@ -262,7 +324,6 @@ def _patch_model(
         tokenizer: PreTrainedTokenizer,
         model_args: ModelArguments,
         is_trainable: bool,
-        # add_valuehead: bool,
 ) -> None:
     gen_config = model.generation_config  # check and fix generation config
     if not gen_config.do_sample and (
@@ -275,9 +336,6 @@ def _patch_model(
     if "GenerationMixin" not in str(model.generate.__func__):
         model.generate = MethodType(PreTrainedModel.generate, model)
 
-    # if add_valuehead:
-    #     prepare_valuehead_model(model)
-
     if model_args.resize_vocab:
         _resize_embedding_layer(model, tokenizer)
 
@@ -286,20 +344,22 @@ def _patch_model(
         # autocast_projector_dtype(model, model_args)
         # add_z3_leaf_module(model)
 
-    # if not model_args.use_unsloth:
-    #     print_attn_implementation(model.config)
+    attn = getattr(model.config, "_attn_implementation", None)
+    if attn == "flash_attention_2":
+        logger.info("Using FlashAttention-2 for faster training and inference.")
+    elif attn == "sdpa":
+        logger.info("Using torch SDPA for faster training and inference.")
 
 def load_model(
         model_args: ModelArguments,
         finetuning_args: FinetuningArguments,
         is_trainable: bool = False,
-        # add_valuehead: bool = False,
 ) -> PreTrainedModel:
     tokenizer = load_tokenizer(model_args)["tokenizer"]
     init_kwargs = _get_init_kwargs(model_args)
     config = AutoConfig.from_pretrained(model_args.model_name_or_path, **init_kwargs)
-    configure_quantization(config, tokenizer, model_args, init_kwargs)
-    # patch_config(config, tokenizer, model_args, init_kwargs, is_trainable)
+    # configure_quantization(config, tokenizer, model_args, init_kwargs)
+    _patch_config(config, tokenizer, model_args, init_kwargs, is_trainable)
 
     # TODO: Good optimization for huggingface models: https://github.com/linkedin/Liger-Kernel
     apply_liger_kernel(config, model_args, is_trainable, require_logits=True)

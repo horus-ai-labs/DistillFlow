@@ -60,8 +60,8 @@ def main():
     # exit()
 
     #TODO: hugging face recommends another way for placing models on a device. Check this again!
-    student_model = student_model.to(device)
-    teacher_model = teacher_model.to(device)
+    # student_model = student_model.to(device)
+    # teacher_model = teacher_model.to(device)
 
     # Load data arguments
     train_datasets = [
@@ -77,17 +77,24 @@ def main():
     )
 
     # Load tokenizer and dataset
-    tokenizer = load_tokenizer(student_model_args, chat_template=config["tokenizer"]["template"])["tokenizer"]
+    tokenizer_template = config.get("tokenizer", {}).get("template", None)
+    tokenizer = load_tokenizer(student_model_args, template=tokenizer_template)["tokenizer"]
     # tokenizer.
+
+    print(tokenizer)
 
     def tokenizer_function(examples):
         return tokenizer(examples["text"], truncation=True, max_length=config["distill"]["max_seq_length"],
-                                 padding="max_length")
+                                 padding="max_length", return_tensors="pt")
 
     dataset_module = get_dataset(data_args, tokenizer, tokenize=True, tokenizer_function=tokenizer_function)
 
     # print(dataset_module["train_dataset"][100])
     # exit()
+
+    accelerator = None
+    if device.type != "mps":
+        accelerator = Accelerator()
 
     # Initialize trainer
     distillation_type = config["distill"]["type"]
@@ -96,18 +103,17 @@ def main():
     max_seq_length, distillation_args = config["distill"]["max_seq_length"], config["distill"]["distillation_args"]
     trainer = None
     if distillation_type == "logits":
-        trainer = logits_distill(distill_config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args)
+        trainer = logits_distill(accelerator, distill_config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args)
     elif distillation_type == "layers":
         trainer = layers_distill(distill_config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args)
     elif distillation_type == "attention":
         trainer = attention_distill(distill_config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args)
 
     if device.type != "mps":
-        accelerator = Accelerator()
         trainer = accelerator.prepare(trainer)
 
     # Train model
-    trainer_stats = trainer.train(resume_from_checkpoint=config["distill"]["sft_config"]["resume_from_checkpoint"])
+    trainer_stats = trainer.train()
 
     trainer.save_model(config["distill"]["sft_config"]["output_dir"])
 
@@ -144,8 +150,9 @@ def layers_distill(config, teacher_model, student_model, dataset_module, tokeniz
         distillation_args= distillation_args
     )
 
-def logits_distill(config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args):
+def logits_distill(accelerator, config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args):
     return LogitsTrainer(
+        accelerator=accelerator,
         model=student_model,
         args=SFTConfig(**config),
         dataset_module=dataset_module,

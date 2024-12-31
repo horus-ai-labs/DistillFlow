@@ -46,7 +46,7 @@ distill:
     weight_decay: 0.05
     warmup_ratio: 0.1
     lr_scheduler_type: 'cosine'
-    resume_from_checkpoint: '/app/results/checkpoint-1000'  # Set to a path or True to resume from the latest checkpoint
+    resume_from_checkpoint: None
     fp16: False
     bf16: True
   distillation_args:
