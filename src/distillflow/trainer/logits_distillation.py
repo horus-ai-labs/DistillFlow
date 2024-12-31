@@ -6,7 +6,7 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from trl import SFTTrainer, SFTConfig
 import torch
 import torch.nn.functional as F
-
+import time
 from ..common import get_current_device
 from ..distill_datasets.loader import DatasetModule
 
@@ -40,9 +40,9 @@ class LogitsTrainer(SFTTrainer):
                         or getattr(teacher_model.pretrained_model, "is_loaded_in_4bit", False)
                 ):  # quantized models are already set on the correct device
                     self.teacher_model = self._prepare_deepspeed(self.teacher_model)
-            else:
-                self.teacher_model = self.accelerator.prepare_model(self.teacher_model, evaluation_mode=True)
-                model = self.accelerator.prepare_model(model)
+         #   else:
+         #       self.teacher_model = self.accelerator.prepare(self.teacher_model)
+         #       model = self.accelerator.prepare(model)
 
         if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
@@ -66,16 +66,28 @@ class LogitsTrainer(SFTTrainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
-
+        start = time.time()
         # self.print_input(inputs)
         # self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
-
+        inputs = self.accelerator.prepare(inputs)
         student_model = model.module if hasattr(model, 'module') else model
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
+        endprep = time.time()
+        print("Prep time:")
+        print(endprep-start)
 
+        start = time.time()
         student_outputs = student_model(**inputs)
+        end1 = time.time()
+        print("Student time:")
+        print(end1-start)
+        start1 = time.time()
         with torch.no_grad():
             teacher_outputs = teacher_model(**inputs)
+            end2 = time.time()
+            print("Teacher time:")
+            print(end2-start)
+            print(end2-start1)
 
             # print(teacher_outputs.keys())
             #
@@ -90,9 +102,13 @@ class LogitsTrainer(SFTTrainer):
         # print("Printing the Teacher Output 2")
         # print(self.tokenizer.batch_decode(teacher_outputs2))
         # exit()
-
+        start = time.time()
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              inputs, student_outputs.loss)
+
+        endloss = time.time()
+        print("loss time:")
+        print(endloss-start)
         return (custom_loss, student_outputs) if return_outputs else custom_loss
 
     def distillation_loss(self, student_logits, teacher_logits, inputs, original_loss):

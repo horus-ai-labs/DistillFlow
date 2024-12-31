@@ -92,10 +92,9 @@ def main():
     # print(dataset_module["train_dataset"][100])
     # exit()
 
-    accelerator = None
-    if device.type != "mps":
-        accelerator = Accelerator()
+    accelerator = Accelerator()
 
+    #teacher_model, student_model = accelerator.parallelize([teacher_model, student_model])
     # Initialize trainer
     distillation_type = config["distill"]["type"]
     distill_config = config["distill"]["sft_config"]
