@@ -40,9 +40,9 @@ class LogitsTrainer(SFTTrainer):
                         or getattr(teacher_model.pretrained_model, "is_loaded_in_4bit", False)
                 ):  # quantized models are already set on the correct device
                     self.teacher_model = self._prepare_deepspeed(self.teacher_model)
-            else:
-                self.teacher_model = self.accelerator.prepare_model(self.teacher_model, evaluation_mode=True)
-                model = self.accelerator.prepare_model(model)
+            # else:
+                # self.teacher_model = self.accelerator.prepare_model(self.teacher_model, evaluation_mode=True)
+                # model = self.accelerator.prepare_model(model)
 
         if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
