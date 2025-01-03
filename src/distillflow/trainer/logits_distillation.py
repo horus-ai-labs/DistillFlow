@@ -7,6 +7,8 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from trl import SFTTrainer, SFTConfig
 import torch
 import torch.nn.functional as F
+import asyncio
+import concurrent.futures
 
 from ..common import get_current_device
 from ..distill_datasets.loader import DatasetModule
@@ -34,11 +36,13 @@ class LogitsTrainer(SFTTrainer):
         self.device = get_current_device()
         self.teacher_stream = None
         self.student_stream = None
+        self.teacher_model = self.teacher_model.to(self.device)
         if self.distillation_args.get("stream", False) and self.device.type != "mps":
             print("Using CUDA stream based parallelism")
             self.teacher_stream = torch.cuda.Stream(device=self.device)
             self.student_stream = torch.cuda.Stream(device=self.device)
-
+        self.thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=30)
+        
         if self.accelerator is not None:
             self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
             if self.is_deepspeed_enabled:
@@ -70,20 +74,36 @@ class LogitsTrainer(SFTTrainer):
             student_logits, torch.cat([teacher_logits, pad_tensor], dim=-1))
         return student_logits, teacher_logits
 
-    def output(self, model, inputs, no_grad):
-        if self.teacher_stream is not None:
-            with torch.cuda.stream(self.teacher_stream):
+    def output(self, model, inputs, stream, no_grad):
+        if stream is not None:
+            with torch.cuda.stream(stream):
                 if no_grad:
                     with torch.no_grad():
                         return model(**inputs)
                 else:
                     return model(**inputs)
+
+    async def async_output(self, model, inputs, no_grad):
+        loop = asyncio.get_event_loop()
+        if no_grad:
+            with torch.no_grad():
+                return await loop.run_in_executor(
+                        self.thread_pool,
+                        lambda: model(**inputs)
+                )
         else:
-            if no_grad:
-                with torch.no_grad():
-                    return model(**inputs)
-            else:
-                return model(**inputs)
+            return await loop.run_in_executor(
+                        self.thread_pool,
+                        lambda: model(**inputs)
+            )
+    
+    async def parallel_forward(self, inputs):
+        start = time.time()
+        teacher_future = self.async_output(self.teacher_model, inputs, None, True)
+        print(f'Teacher response: {(time.time() - start)}')
+        student_future = self.async_output(self.model, inputs, None, False)
+        print(f'Teacher response: {(time.time() - start)}')
+        return await asyncio.gather(teacher_future, student_future)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
@@ -95,15 +115,22 @@ class LogitsTrainer(SFTTrainer):
         student_model = model.module if hasattr(model, 'module') else model
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
 
-        start = time.time()
-        teacher_outputs = self.output(teacher_model, inputs, True)
-        teacher_end = time.time()
-        print(f'Teacher response: {(teacher_end - start)}')
-        student_outputs = self.output(student_model, inputs, False)
-        student_end = time.time()
-        print(f'Student response: {(student_end - teacher_end)}')
-        print(f'Student overall: {(student_end - start)}')
+        #start = time.time()
+        #teacher_future = self.output(teacher_model, inputs, True)
+        #teacher_end = time.time()
+        #print(f'Teacher response: {(teacher_end - start)}')
+        #student_future = self.output(student_model, inputs, False)
+        #student_end = time.time()
+        #print(f'Student response: {(student_end - teacher_end)}')
+        #print(f'Student overall: {(student_end - start)}')
 
+        #teacher_outputs, student_outputs = await asyncio.gather(teacher_future, student_future)
+
+        # loop = asyncio.new_event_loop()
+        #asyncio.set_event_loop(loop)
+        #teacher_outputs, student_outputs = loop.run_until_complete(self.parallel_forward(inputs))
+        #loop.close()
+        #print(f'wait: {(time.time() - start)}')
             # print(teacher_outputs.keys())
             #
             # teacher_outputs2 = teacher_model.generate(**inputs, max_new_tokens=200,
@@ -120,9 +147,21 @@ class LogitsTrainer(SFTTrainer):
 
         # Synchronize streams
         if self.distillation_args.get("stream", False) and self.device.type != 'mps':
+            start = time.time()
+            teacher_outputs = self.output(teacher_model, inputs, self.teacher_stream, True)
+            print(f'Stream Teacher response: {(time.time() - start)}')
+            student_outputs = self.output(student_model, inputs, self.student_stream, False)
+            print(f'Stream Student response: {(time.time() - start)}')
             torch.cuda.current_stream().wait_stream(self.teacher_stream)
             torch.cuda.current_stream().wait_stream(self.student_stream)
+            print(f'Stream wait: {(time.time() - start)}')
+        else:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            teacher_outputs, student_outputs = loop.run_until_complete(self.parallel_forward(inputs))
+            loop.close()
             print(f'wait: {(time.time() - start)}')
+
 
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              inputs, student_outputs.loss)
