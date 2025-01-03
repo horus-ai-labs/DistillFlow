@@ -1,3 +1,4 @@
+import time
 from typing import Optional, Union
 import torch.nn as nn
 from accelerate import Accelerator
@@ -31,6 +32,12 @@ class LogitsTrainer(SFTTrainer):
         eval_dataset = dataset_module["eval_dataset"]
         self.max_seq_length = max_seq_length
         self.device = get_current_device()
+        self.teacher_stream = None
+        self.student_stream = None
+        if self.distillation_args.get("stream", False) and self.device.type != "mps":
+            print("Using CUDA stream based parallelism")
+            self.teacher_stream = torch.cuda.Stream(device=self.device)
+            self.student_stream = torch.cuda.Stream(device=self.device)
 
         if self.accelerator is not None:
             self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
@@ -63,19 +70,39 @@ class LogitsTrainer(SFTTrainer):
             student_logits, torch.cat([teacher_logits, pad_tensor], dim=-1))
         return student_logits, teacher_logits
 
+    def output(self, model, inputs, no_grad):
+        if self.teacher_stream is not None:
+            with torch.cuda.stream(self.teacher_stream):
+                if no_grad:
+                    with torch.no_grad():
+                        return model(**inputs)
+                else:
+                    return model(**inputs)
+        else:
+            if no_grad:
+                with torch.no_grad():
+                    return model(**inputs)
+            else:
+                return model(**inputs)
+
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
 
         # self.print_input(inputs)
-        # self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
+        self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
 
         student_model = model.module if hasattr(model, 'module') else model
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
 
-        student_outputs = student_model(**inputs)
-        with torch.no_grad():
-            teacher_outputs = teacher_model(**inputs)
+        start = time.time()
+        teacher_outputs = self.output(teacher_model, inputs, True)
+        teacher_end = time.time()
+        print(f'Teacher response: {(teacher_end - start)}')
+        student_outputs = self.output(student_model, inputs, False)
+        student_end = time.time()
+        print(f'Student response: {(student_end - teacher_end)}')
+        print(f'Student overall: {(student_end - start)}')
 
             # print(teacher_outputs.keys())
             #
@@ -90,6 +117,12 @@ class LogitsTrainer(SFTTrainer):
         # print("Printing the Teacher Output 2")
         # print(self.tokenizer.batch_decode(teacher_outputs2))
         # exit()
+
+        # Synchronize streams
+        if self.distillation_args.get("stream", False) and self.device.type != 'mps':
+            torch.cuda.current_stream().wait_stream(self.teacher_stream)
+            torch.cuda.current_stream().wait_stream(self.student_stream)
+            print(f'wait: {(time.time() - start)}')
 
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              inputs, student_outputs.loss)

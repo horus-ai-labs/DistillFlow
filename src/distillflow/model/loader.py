@@ -8,7 +8,7 @@ import transformers
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 from transformers import PreTrainedTokenizer, ProcessorMixin, AutoConfig, AutoTokenizer, AutoProcessor, PreTrainedModel, \
     PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available, PreTrainedTokenizerBase
-from transformers.integrations import is_deepspeed_zero3_enabled
+from transformers.integrations import is_deepspeed_zero3_enabled, is_deepspeed_available
 from transformers.modeling_utils import is_fsdp_enabled
 from transformers.utils import is_torch_sdpa_available, is_flash_attn_2_available
 from transformers.utils.versions import require_version
@@ -262,7 +262,8 @@ def _patch_config(
     #     raise ValueError("Please download llava models with hf-compatible format: https://huggingface.co/llava-hf")
 
     # deepspeed zero3 is not compatible with low_cpu_mem_usage
-    init_kwargs["low_cpu_mem_usage"] = model_args.low_cpu_mem_usage and (not is_deepspeed_zero3_enabled())
+
+    init_kwargs["low_cpu_mem_usage"] = model_args.low_cpu_mem_usage and (not is_deepspeed_available())
 
     # cast data type of the model if:
     # 1. not deepspeed zero3 and not fsdp (keep zero3 or fsdp in float32)
