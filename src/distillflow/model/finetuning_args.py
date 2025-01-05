@@ -64,7 +64,7 @@ class LoraArguments:
         metadata={"help": "Dropout rate for the LoRA fine-tuning."},
     )
     lora_rank: int = field(
-        default=32,
+        default=8,
         metadata={"help": "The intrinsic dimension for LoRA fine-tuning."},
     )
     lora_target: str = field(

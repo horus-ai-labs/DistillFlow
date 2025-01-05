@@ -44,7 +44,7 @@ def main():
 
     # Load student model
     student_model_args = ModelArguments(**config["student_model"])
-    student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(finetuning_type='lora'),
+    student_model = load_model(student_model_args, finetuning_args=FinetuningArguments(),
                                is_trainable=True)
 
     # Load teacher model
