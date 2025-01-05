@@ -102,6 +102,7 @@ def get_dataset(data_args: DataArgs,
     # Load and preprocess dataset
     # with training_args.main_process_first(desc="load dataset"):
     dataset = _get_merged_dataset(data_args.train_datasets, data_args, tokenizer)
+    dataset = dataset.shuffle(seed=data_args.seed)
     eval_dataset = None
     if data_args.eval_datasets:
         eval_dataset = _get_merged_dataset(data_args.eval_datasets, data_args, tokenizer)
