@@ -30,7 +30,7 @@ tokenizer:
   template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
 distill:
-  type: logits
+  type: layers
   max_seq_length: 1024
   sft_config:
     output_dir: './results'
@@ -49,6 +49,8 @@ distill:
     resume_from_checkpoint: None  # Set to a path or True to resume from the latest checkpoint
     fp16: False
     bf16: True
+    max_grad_norm: 1.0
+    group_by_length: False
   distillation_args:
     temperature: 2.0
     alpha: 0.5
