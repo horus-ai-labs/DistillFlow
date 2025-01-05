@@ -22,10 +22,13 @@ data:
   train_datasets:
     - path: mlabonne/FineTome-100k
       template: sharegpt
+      num_samples: 1000
     - path: horus-ai-labs/WebInstructSub-150K
       template: sharegpt
+      num_samples: 1000
     - path: Crystalcareai/openhermes_200k_unfiltered
       template: sharegpt
+      num_samples: 1000
   test_size: 0.1
   streaming: false
 
