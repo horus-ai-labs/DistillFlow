@@ -58,4 +58,3 @@ distill:
   distillation_args:
     temperature: 2.0
     alpha: 0.5
-    stream: true

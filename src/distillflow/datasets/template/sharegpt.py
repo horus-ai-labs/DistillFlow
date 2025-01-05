@@ -63,40 +63,6 @@ class ShareGpt(Template):
                 {"role": tag_mapping[message.get(self.args.role_tag, '')], "content": message.get(self.args.content_tag, '')}
             )
 
-
-        # if (not self.args.ranking and len(aligned_messages) % 2 != 0) or (
-        #         self.args.ranking and len(aligned_messages) % 2 == 0
-        # ):
-        #     logger.warning("Invalid message count in {}.".format(messages))
-        #     broken_data = True
-
-        # if self.args.kto_tag and isinstance(example[self.args.kto_tag], bool):  # kto example
-        #     prompt = aligned_messages[:-1]
-        #     response = aligned_messages[-1:]
-        #     if example[self.args.kto_tag]:
-        #         response = response + [{"role": Role.ASSISTANT.value, "content": ""}]
-        #     else:
-        #         response = [{"role": Role.ASSISTANT.value, "content": ""}] + response
-        # elif (
-        #         self.args.ranking
-        #         and isinstance(example[self.args.chosen], dict)
-        #         and isinstance(example[self.args.rejected], dict)
-        # ):  # pairwise example
-        #     chosen = example[self.args.chosen]
-        #     rejected = example[self.args.rejected]
-        #     if (
-        #             chosen[self.args.role_tag] not in accept_tags[-1]
-        #             or rejected[self.args.role_tag] not in accept_tags[-1]
-        #     ):
-        #         logger.warning("Invalid role tag in {}.".format([chosen, rejected]))
-        #         broken_data = True
-        #
-        #     prompt = aligned_messages
-        #     response = [
-        #         {"role": tag_mapping[chosen[self.args.role_tag]], "content": chosen[self.args.content_tag]},
-        #         {"role": tag_mapping[rejected[self.args.role_tag]], "content": rejected[self.args.content_tag]},
-        #     ]
-        # else:  # normal example
         prompt = aligned_messages[:-1]
         response = aligned_messages[-1:]
 

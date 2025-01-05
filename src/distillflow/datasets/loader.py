@@ -37,7 +37,7 @@ def _load_dataset(
             trust_remote_code=True
         )
         # Shuffle dataset with a pre-seed
-        dataset = dataset.shuffle(seed=dataset_args.seed)
+        dataset = dataset.shuffle(seed=data_args.seed)
 
         # if data_args.streaming and (dataset_attr.load_from == "file"):  # faster than specifying streaming=True
         #     dataset = dataset.to_iterable_dataset()  # TODO: add num shards parameter
@@ -105,17 +105,6 @@ def get_dataset(data_args: DataArgs,
     if data_args.eval_datasets:
         eval_dataset = _get_merged_dataset(data_args.eval_datasets, data_args, tokenizer)
 
-    # with training_args.main_process_first(desc="pre-process dataset"):
-    #     dataset = _get_preprocessed_dataset(
-    #         dataset, data_args, training_args, stage, template, tokenizer, processor, is_eval=False
-    #     )
-    #     eval_dataset = _get_preprocessed_dataset(
-    #         eval_dataset, data_args, training_args, stage, template, tokenizer, processor, is_eval=True
-    #     )
-    #
-    #     if data_args.val_size > 1e-6:
-    #         dataset_dict = split_dataset(dataset, data_args, seed=training_args.seed)
-    #     else:
     dataset_dict = {}
 
     if eval_dataset is None:
@@ -134,14 +123,6 @@ def get_dataset(data_args: DataArgs,
 
         dataset_dict = DatasetDict(dataset_dict)
 
-        # if data_args.tokenized_path is not None:
-        #     if training_args.should_save:
-        #         dataset_dict.save_to_disk(data_args.tokenized_path)
-        #         logger.info("Tokenized dataset saved at {}.".format(data_args.tokenized_path))
-        #         logger.info("Please restart the training with `tokenized_path: {}`.".format(data_args.tokenized_path))
-        #
-        #     sys.exit(0)
-
     dataset_module = {}
     if "train" in dataset_dict:
         dataset_module["train_dataset"] = dataset_dict["train"]
@@ -149,22 +130,15 @@ def get_dataset(data_args: DataArgs,
     if "validation" in dataset_dict:
         dataset_module["eval_dataset"] = dataset_dict["validation"]
 
-    if tokenize and tokenizer_function is not None:
+    if tokenize:
+        if tokenizer_function is None:
+            raise ValueError("Please pass a valid tokenizer function.")
 
         dataset_module["train_dataset"] = dataset_module["train_dataset"].map(tokenizer_function,
-                                                                              batched=True, num_proc=8,
-                                                                              remove_columns=["text"])
+                                              batched=True, num_proc=8, remove_columns=["text"])
 
         dataset_module["eval_dataset"] = dataset_module["eval_dataset"].map(tokenizer_function,
-                                                                              batched=True, num_proc=8,
-                                                                              remove_columns=["text"])
-
-
-    else:
-        print("Please pass a valid tokenizer function.")
-        exit()
-
-
+                                              batched=True, num_proc=8, remove_columns=["text"])
     return dataset_module
 
 def _get_merged_dataset(

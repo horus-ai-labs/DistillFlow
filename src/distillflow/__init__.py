@@ -3,7 +3,7 @@ from transformers import PreTrainedModel
 
 from .distill import Distiller
 from datasets import Dataset
-from .distill_datasets import DistillDataset
+from .datasets import DistillDataset
 
 class DistillFlow:
     """

@@ -9,7 +9,7 @@ from trl import SFTConfig, SFTTrainer
 
 from .AdaptationLayer import AdaptationLayer
 from ..common import get_current_device
-from ..distill_datasets.loader import DatasetModule
+from ..datasets.loader import DatasetModule
 
 class LayersTrainer(SFTTrainer):
     def __init__(self,

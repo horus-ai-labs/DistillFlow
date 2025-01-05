@@ -1,24 +1,19 @@
 from functools import partial
 from random import randint
 
-import torch
 from datasets import Dataset, load_dataset
 from trl import SFTConfig
 from accelerate import Accelerator
 
-import s3_utils
 from distillflow.common import get_current_device
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.model.args import ModelArguments
 from distillflow.model.finetuning_args import FinetuningArguments
-from distillflow.distill_datasets.loader import get_dataset
-from distillflow.distill_datasets.dataset_args import DatasetArgs
-from distillflow.distill_datasets.template import Alpaca, AlpacaArgs, ShareGpt, ShareGptArgs
-from distillflow.trainer.logits_distillation import LogitsTrainer
-from distillflow.distill_datasets.dataset_args import DataArgs
+from distillflow.datasets.dataset_args import DatasetArgs
+from distillflow.datasets.dataset_args import DataArgs
 from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
-from distillflow.distill_datasets.template import ShareGpt, ShareGptArgs, AlpacaArgs, Alpaca
+from distillflow.datasets.template import ShareGpt
 from distillflow.trainer.logits_distillation import LogitsTrainer
 
 def main():
@@ -46,7 +41,7 @@ def main():
     data_args = DataArgs(
         seed=0,
         train_datasets=[
-            DatasetArgs(path="mlabonne/FineTome-100k", seed=0, template=ShareGpt()),
+            DatasetArgs(path="mlabonne/FineTome-100k", template=ShareGpt()),
             # DatasetArgs(path="databricks/databricks-dolly-15k", seed=42, template=Alpaca(args=AlpacaArgs(prompt="instruction", query="context", response="response"))),
         ],
         test_size=1000,

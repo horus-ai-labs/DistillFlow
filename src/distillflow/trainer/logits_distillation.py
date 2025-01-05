@@ -9,8 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from ..common import get_current_device
-from ..distill_datasets.loader import DatasetModule
-
+from ..datasets.loader import DatasetModule
 
 # TODO: Change default value behaviour. Throw warning to users for default values.
 class LogitsTrainer(SFTTrainer):
@@ -32,12 +31,8 @@ class LogitsTrainer(SFTTrainer):
         eval_dataset = dataset_module["eval_dataset"]
         self.max_seq_length = max_seq_length
         self.device = get_current_device()
-        self.teacher_stream = None
-        self.student_stream = None
-        if self.distillation_args.get("stream", False) and self.device.type != "mps":
-            print("Using CUDA stream based parallelism")
-            self.teacher_stream = torch.cuda.Stream(device=self.device)
-            self.student_stream = torch.cuda.Stream(device=self.device)
+        self.teacher_model = self.teacher_model.to(self.device)
+        model = model.to(self.device)
 
         if self.accelerator is not None:
             self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
@@ -47,9 +42,6 @@ class LogitsTrainer(SFTTrainer):
                         or getattr(teacher_model.pretrained_model, "is_loaded_in_4bit", False)
                 ):  # quantized models are already set on the correct device
                     self.teacher_model = self._prepare_deepspeed(self.teacher_model)
-            # else:
-                # self.teacher_model = self.accelerator.prepare_model(self.teacher_model, evaluation_mode=True)
-                # model = self.accelerator.prepare_model(model)
 
         if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
@@ -71,59 +63,21 @@ class LogitsTrainer(SFTTrainer):
         return student_logits, teacher_logits
 
     def output(self, model, inputs, no_grad):
-        if self.teacher_stream is not None:
-            with torch.cuda.stream(self.teacher_stream):
-                if no_grad:
-                    with torch.no_grad():
-                        return model(**inputs)
-                else:
-                    return model(**inputs)
-        else:
-            if no_grad:
-                with torch.no_grad():
-                    return model(**inputs)
-            else:
+        if no_grad:
+            with torch.no_grad():
                 return model(**inputs)
+        else:
+            return model(**inputs)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # inputs = {k: v.to(model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
         # inputs.set_format("torch")
-
         # self.print_input(inputs)
-        self.teacher_model = self.teacher_model.to(inputs['labels'].device) if self.device.type == "mps" else self.teacher_model
-
         student_model = model.module if hasattr(model, 'module') else model
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
 
-        start = time.time()
         teacher_outputs = self.output(teacher_model, inputs, True)
-        teacher_end = time.time()
-        print(f'Teacher response: {(teacher_end - start)}')
         student_outputs = self.output(student_model, inputs, False)
-        student_end = time.time()
-        print(f'Student response: {(student_end - teacher_end)}')
-        print(f'Student overall: {(student_end - start)}')
-
-            # print(teacher_outputs.keys())
-            #
-            # teacher_outputs2 = teacher_model.generate(**inputs, max_new_tokens=200,
-            #                                             temperature=0.7,
-            #                                             repetition_penalty=1.2)
-
-        # print("Printing the Student Output: ")
-        # self.print_output(student_outputs)
-        # print("Printing the Teacher Output: ")
-        # self.print_output(teacher_outputs)
-        # print("Printing the Teacher Output 2")
-        # print(self.tokenizer.batch_decode(teacher_outputs2))
-        # exit()
-
-        # Synchronize streams
-        if self.distillation_args.get("stream", False) and self.device.type != 'mps':
-            torch.cuda.current_stream().wait_stream(self.teacher_stream)
-            torch.cuda.current_stream().wait_stream(self.student_stream)
-            print(f'wait: {(time.time() - start)}')
-
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              inputs, student_outputs.loss)
         return (custom_loss, student_outputs) if return_outputs else custom_loss

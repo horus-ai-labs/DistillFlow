@@ -8,7 +8,7 @@ from transformers import Seq2SeqTrainer, PreTrainedModel, PreTrainedTokenizerBas
 from trl import SFTConfig, SFTTrainer
 
 from distillflow.common import get_current_device
-from distillflow.distill_datasets.loader import DatasetModule
+from distillflow.datasets.loader import DatasetModule
 from distillflow.trainer.AdaptationLayer import AdaptationLayer
 
 

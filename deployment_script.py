@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description="Deploy a Python project to RunPod.
 # )
 parser.add_argument(
     "--gpu-type",
-    required=True,
+    required=False,
     default="NVIDIA A40",  # Example default value
     help="The GPU type to use. Defaults to 'NVIDIA A40' if not specified."
 )

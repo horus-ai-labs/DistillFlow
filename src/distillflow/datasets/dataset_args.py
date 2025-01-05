@@ -9,15 +9,8 @@ class DatasetArgs:
     path: str = ""
     num_samples: Optional[int] = None
     load_from_cache_file: bool = True
-
-    formatting: Literal["alpaca", "sharegpt"] = "alpaca"
     template: Optional[Template] = None
-    # ranking: bool = False
     split: str = "train"
-    seed: int = 0
-
-    # system: Optional[str] = None
-    # tools: Optional[str] = None
 
 @dataclass
 class DataArgs:
@@ -26,7 +19,7 @@ class DataArgs:
     """
     seed: Optional[int] = field(
         default=0,
-        metadata={"help": "Auth token to log in with Hugging Face Hub."},
+        metadata={"help": "Seed to shuffle the dataset."},
     )
     train_datasets: Optional[List[DatasetArgs]] = field(
         default=None,

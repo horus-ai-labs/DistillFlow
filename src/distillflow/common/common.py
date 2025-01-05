@@ -22,7 +22,6 @@ def get_current_device() -> torch.device:
         if b():
             device = "{}:{}".format(d, local_rank)
 
-    print(f"USING device {device}")
     return torch.device(device)
 
 def count_parameters(model: "torch.nn.Module") -> Tuple[int, int]:

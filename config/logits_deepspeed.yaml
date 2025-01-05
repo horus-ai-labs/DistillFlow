@@ -23,6 +23,12 @@ data:
     - path: mlabonne/FineTome-100k
       seed: 42
       template: sharegpt
+    - path: horus-ai-labs/WebInstructSub-150K
+      seed: 42
+      template: sharegpt
+    - path: Crystalcareai/openhermes_200k_unfiltered
+      seed: 42
+      template: sharegpt
   test_size: 0.1
   streaming: false
 
