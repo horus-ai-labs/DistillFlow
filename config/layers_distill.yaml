@@ -17,14 +17,12 @@ teacher_model:
 #  quantization_method: gptq
 
 data:
-  seed: 0
+  seed: 42
   text_field: 'text'
   train_datasets:
     - path: mlabonne/FineTome-100k
-      seed: 42
       template: sharegpt
     - path: databricks/databricks-dolly-15k
-      seed: 42
       template: alpaca
       template_args:
         prompt: instruction

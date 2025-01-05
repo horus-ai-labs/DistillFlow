@@ -17,11 +17,10 @@ teacher_model:
 #  quantization_method: gptq
 
 data:
-  seed: 0
+  seed: 42
   text_field: "text"
   train_datasets:
     - path: mlabonne/FineTome-100k
-      seed: 42
       template: sharegpt
       num_samples: 100
   test_size: 0.2
