@@ -113,8 +113,8 @@ def main():
         trainer = accelerator.prepare(trainer)
 
     # Train model
-    trainer_stats = trainer.train()
-
+    trainer_stats = trainer.train(resume_from_checkpoint=config["distill"]["sft_config"]["resume_from_checkpoint"])
+    print(trainer_stats)
     trainer.save_model(config["distill"]["sft_config"]["output_dir"])
 
     # upload to s3

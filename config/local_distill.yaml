@@ -1,14 +1,14 @@
 student_model:
-  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-#  model_name_or_path: Qwen/Qwen2-0.5B
+#  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
+  model_name_or_path: Qwen/Qwen2-0.5B
   flash_attn: fa2
   use_unsloth: false
   output_attentions: true
 #  enable_liger_kernel: true
 
 teacher_model:
-  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
-#  model_name_or_path: Qwen/Qwen2-1.5B
+#  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
+  model_name_or_path: Qwen/Qwen2-1.5B
   flash_attn: fa2
   use_unsloth: false
   output_attentions: true
@@ -30,7 +30,7 @@ tokenizer:
   template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
 distill:
-  type: layers
+  type: logits
   max_seq_length: 1024
   sft_config:
     output_dir: './results'
