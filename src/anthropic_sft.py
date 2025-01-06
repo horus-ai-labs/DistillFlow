@@ -1,7 +1,11 @@
 from functools import partial
 from random import randint
 
+import torch
 from datasets import Dataset, load_dataset
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
+from transformers import get_linear_schedule_with_warmup
 from trl import SFTConfig
 from accelerate import Accelerator
 
@@ -15,6 +19,8 @@ from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.datasets.template import ShareGpt
 from distillflow.trainer.logits_distillation import LogitsTrainer
+from distillflow.trainer.logits_torch import DistillationTrainer
+
 
 def main():
     student_model_args = ModelArguments(
@@ -66,22 +72,26 @@ def main():
                          padding="max_length")
 
     tokenized_dataset = dataset.map(tokenize_function, batched=True, num_proc=8, remove_columns=["text"])
-    tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.1)
+    dataset = tokenized_dataset.train_test_split(test_size=0.1)
 
+    # dataset =  dataset.train_test_split(test_size=0.1)
     dataset_module = {}
-    dataset_module['train_dataset'] = tokenized_dataset['train']
-    dataset_module['eval_dataset'] = tokenized_dataset['test']
+    dataset_module['train_dataset'] = dataset['train']
+    dataset_module['eval_dataset'] = dataset['test']
 
     trainer = logits_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
     # trainer = layers_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
     # trainer = attention_distill(teacher_model, student_model, dataset_module, tokenizer, data_args)
 
-    device = get_current_device()
-    if device.type != "mps":
-        accelerator = Accelerator()
-        trainer = accelerator.prepare(trainer)
-
+    # logits_train(None, teacher_model, student_model, dataset_module, tokenizer)
     trainer_stats = trainer.train()
+
+    device = get_current_device()
+    # if device.type != "mps":
+    #     accelerator = Accelerator()
+    #     trainer = logits_train(accelerator, teacher_model, student_model, dataset_module, tokenizer)
+    #     trainer = accelerator.prepare(trainer)
+    #     trainer_stats = trainer.train()
 
     # upload to s3
 
@@ -196,6 +206,7 @@ def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data
         "bf16": True
     }
     return LogitsTrainer(
+        accelerator=None,
         model=student_model,
         args=SFTConfig(**config),
         dataset_module=dataset_module,
@@ -210,6 +221,105 @@ def logits_distill(teacher_model, student_model, dataset_module, tokenizer, data
         #                 }
     )
 
+
+def create_dataloader(dataset, batch_size, tokenizer, max_length=4096):
+    def collate_fn(batch):
+        texts = [item["text"] for item in batch]
+        encodings = tokenizer(
+            texts,
+            padding=True,
+            truncation=True,
+            max_length=max_length,
+            return_tensors="pt"
+        )
+
+        # Create labels that match SFTTrainer behavior
+        labels = encodings['input_ids'].clone()
+
+        # Create attention mask for padding
+        attention_mask = encodings['attention_mask']
+
+        # Set labels to -100 where we have padding
+        labels[attention_mask == 0] = -100
+
+        # Shift labels left by one position
+        labels = labels[:, :-1]
+        new_labels = torch.full((labels.shape[0], 1), -100, device=labels.device)
+        labels = torch.cat([labels, new_labels], dim=1)
+
+        encodings['labels'] = labels
+        return encodings
+
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        collate_fn=collate_fn,
+        shuffle=True
+    )
+
+def logits_train(accelerate, teacher_model, student_model, dataset_module, tokenizer):
+    config = {
+        "output_dir": "./results",
+        "num_train_epochs": 3,
+        "per_device_train_batch_size": 1,
+        "gradient_accumulation_steps": 1,
+        "save_steps": 1000,
+        # "max_steps": 5000, # need to specify with streaming enabled
+        "logging_steps": 1,
+        "learning_rate": 2e-5,
+        "weight_decay": 0.05,
+        "warmup_ratio": 0.1,
+        "lr_scheduler_type": "cosine",
+        "resume_from_checkpoint": None,  # Set to a path or True to resume from the latest checkpoint
+        "fp16": False,
+        "bf16": True
+    }
+    # Create dataloaders
+    train_dataloader = create_dataloader(
+        dataset_module["train_dataset"],
+        batch_size=config["per_device_train_batch_size"],
+        tokenizer=tokenizer,
+        max_length=4096
+    )
+
+    eval_dataloader = create_dataloader(
+        dataset_module["eval_dataset"],
+        batch_size=config["per_device_train_batch_size"],
+        tokenizer=tokenizer,
+        max_length=4096
+    ) if "eval_dataset" in dataset_module else None
+
+    # Create optimizer
+    optimizer = AdamW(
+        student_model.parameters(),
+        lr=config["learning_rate"],
+        weight_decay=config["weight_decay"]
+    )
+
+    # Create learning rate scheduler
+    num_training_steps = len(train_dataloader) * config["num_train_epochs"]
+    num_warmup_steps = int(num_training_steps * config["warmup_ratio"])
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=num_warmup_steps,
+        num_training_steps=num_training_steps
+    )
+
+    # Initialize the trainer
+    trainer = DistillationTrainer(
+        accelerator=accelerate,
+        student_model=student_model,
+        teacher_model=teacher_model,
+        train_dataloader=train_dataloader,
+        eval_dataloader=eval_dataloader,
+        optimizer=optimizer,
+        max_seq_length=4096,
+        distillation_args={"temperature": 2.0, "alpha": 0.5},
+        num_epochs=config["num_train_epochs"]
+    )
+
+    # Start training
+    trainer.train()
 
 def print_random(dataset: Dataset):
     # print random rows

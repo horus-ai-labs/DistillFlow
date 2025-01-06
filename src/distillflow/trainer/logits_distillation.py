@@ -89,11 +89,37 @@ class LogitsTrainer(SFTTrainer):
         student_logits_scaled = student_logits / self.distillation_args["temperature"]
         teacher_logits_scaled = teacher_logits / self.distillation_args["temperature"]
 
-        loss_kd = F.kl_div(
-            F.log_softmax(student_logits_scaled, dim=-1),
-            F.softmax(teacher_logits_scaled, dim=-1),
-            reduction='batchmean'
-        ) * (self.distillation_args["temperature"] ** 2) / self.max_seq_length
+        # Calculate KL div loss only on non-padded positions
+        attention_mask = inputs.get('attention_mask', None)
+        if attention_mask is not None:
+            active_loss = attention_mask.view(-1) == 1
+            active_logits_student = student_logits_scaled.view(-1, student_logits_scaled.size(-1))[active_loss]
+            active_logits_teacher = teacher_logits_scaled.view(-1, teacher_logits_scaled.size(-1))[active_loss]
+            loss_kd = F.kl_div(
+                F.log_softmax(active_logits_student, dim=-1),
+                F.softmax(active_logits_teacher, dim=-1),
+                reduction='batchmean'
+            ) * (self.distillation_args["temperature"] ** 2)
+        else:
+            loss_kd = F.kl_div(
+                F.log_softmax(student_logits_scaled, dim=-1),
+                F.softmax(teacher_logits_scaled, dim=-1),
+                reduction='batchmean'
+            ) * (self.distillation_args["temperature"] ** 2)
+
+        # Print losses for debugging
+        print(f"KL loss: {loss_kd:.4f}")
+        print(f"Original loss: {original_loss:.4f}")
+
+        alpha = self.distillation_args["alpha"]
+        final_loss = alpha * loss_kd + (1 - alpha) * original_loss
+        print(f"Final loss: {final_loss:.4f}")
+
+        # loss_kd = F.kl_div(
+        #     F.log_softmax(student_logits_scaled, dim=-1),
+        #     F.softmax(teacher_logits_scaled, dim=-1),
+        #     reduction='batchmean'
+        # ) * (self.distillation_args["temperature"] ** 2) / self.max_seq_length
 
         return self.distillation_args["alpha"] * loss_kd + (1 - self.distillation_args["alpha"]) * original_loss
 
