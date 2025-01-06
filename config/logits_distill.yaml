@@ -24,8 +24,6 @@ data:
       template: sharegpt
     - path: horus-ai-labs/WebInstructSub-150K
       template: sharegpt
-    - path: Crystalcareai/openhermes_200k_unfiltered
-      template: sharegpt
   test_size: 0.1
   streaming: false
 
