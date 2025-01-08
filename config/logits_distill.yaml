@@ -13,7 +13,7 @@ teacher_model:
   use_unsloth: false
   output_attentions: false
   enable_liger_kernel: true
-#  quantization_bit: 8
+  quantization_bit: 4
 #  quantization_method: gptq
 
 data:

@@ -74,10 +74,11 @@ class LogitsTrainer(SFTTrainer):
         # inputs.set_format("torch")
         # self.print_input(inputs)
         student_model = model.module if hasattr(model, 'module') else model
-        teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
+        # teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
 
-        teacher_outputs = self.output(teacher_model, inputs, True)
+        # teacher_outputs = self.output(teacher_model, inputs, True)
         student_outputs = self.output(student_model, inputs, False)
+        teacher_outputs = student_outputs
 
         print("Student SFT Loss:-", student_outputs.loss)
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
