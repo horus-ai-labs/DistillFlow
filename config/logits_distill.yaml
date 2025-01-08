@@ -8,7 +8,7 @@ student_model:
 
 teacher_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
-  model_name_or_path: Qwen/Qwen2-7B-Instruct
+  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
   flash_attn: fa2
   use_unsloth: false
   output_attentions: false
