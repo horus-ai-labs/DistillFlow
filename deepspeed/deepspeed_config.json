@@ -24,7 +24,5 @@
     "reduce_bucket_size": 5e8,
     "contiguous_gradients": true,
     "round_robin_gradients": true
-  },
-  "zero_save_optimizer_states": false,
-  "zero_save_16bit_model": false
+  }
 }
