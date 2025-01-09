@@ -84,7 +84,7 @@ class LogitsTrainer(SFTTrainer):
         custom_loss = self.distillation_loss(student_outputs.logits, teacher_outputs.logits,
                                              inputs, student_outputs.loss)
 
-        custom_loss = custom_loss / self.args["gradient_accumulation_steps"]
+        custom_loss = custom_loss / self.args.gradient_accumulation_steps
 
         return (custom_loss, student_outputs) if return_outputs else custom_loss
 
