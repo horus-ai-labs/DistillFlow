@@ -47,10 +47,10 @@ distill:
     weight_decay: 0.05
     warmup_ratio: 0.1
     lr_scheduler_type: 'cosine'
-    resume_from_checkpoint: None
+    resume_from_checkpoint: null
     fp16: False
     bf16: True
     deepspeed: './deepspeed/deepspeed_config.json'
   distillation_args:
     temperature: 2.0
-    alpha: 0.5
+    alpha: 0.0
