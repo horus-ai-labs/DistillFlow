@@ -48,9 +48,8 @@ def main():
                                is_trainable=True)
 
     # Load teacher model
-    # teacher_model_args = ModelArguments(**config["teacher_model"])
-    # teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
-    teacher_model = None
+    teacher_model_args = ModelArguments(**config["teacher_model"])
+    teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
     # import torch
     # from transformers import AutoModelForCausalLM
     # model_kwargs = {"torch_dtype": torch.bfloat16}
