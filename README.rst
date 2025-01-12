@@ -1,11 +1,15 @@
 .. image:: https://s3.us-west-2.amazonaws.com/www.horusailabs.com/distillflow.png
     :target: https://horusailabs.com/
+    :align: center
 ========
 
-.. image:: https://img.shields.io/badge/license-MIT-blue.svg
-    :target: LICENSE
-.. image:: https://img.shields.io/badge/status-alpha-red.svg
-    :target: https://github.com/username/DistillFlow
+.. raw:: html
+
+   <div align="center">
+     <a href="LICENSE"><img src="https://img.shields.io/github/license/horus-ai-labs/DistillFlow"/></a>
+     <a href="https://github.com/horus-ai-labs/DistillFlow/discussions"><img src="https://img.shields.io/badge/status-beta-red.svg"/></a>
+     <a href="https://www.python.org/downloads/release/python-3120/"><img src="https://img.shields.io/badge/python-3.12-green.svg"/></a>
+   </div>
 
 Overview
 ========
@@ -19,28 +23,28 @@ DistillFlow is maintained by HorusAILabs_.
 Architecture
 ============
 DistillFlow lets you build a fully configurable pipeline, to help with your Distillation.
-Gather your training data from S3, CSV or just scrape it with a web crawler.
-Once the data is available, choose a teacher model, and distill multiple models in parallel.
-Finally, compare the performance across all distilled models to choose the best one.
+Once the data is available, choose a teacher model, and the student model and your dataset
+and finally run the distillation.
 
+.. raw:: html
 
-.. image:: https://s3.us-west-2.amazonaws.com/www.horusailabs.com/distillflow-architecture.png
-    :target: https://s3.us-west-2.amazonaws.com/www.horusailabs.com/distillflow-architecture.png
+   <p align="center">
+     <img src="https://s3.us-west-2.amazonaws.com/www.horusailabs.com/distillflow_arch.png" height="600">
+   </p>
 
 Key Features
 ============
-- **Multi-Strategy Distillation:** Supports multiple distillation techniques such as Teacher-Student, Knowledge Distillation, and Layer Dropout.
+- **Multi-Strategy Distillation:** Supports multiple distillation techniques such as logits, attention and layers based distillation.
 - **Dynamic Resource Allocation:** Automatically distributes tasks across GPUs or nodes based on available memory.
 - **Fine-Tuning Support:** Allows for domain-specific and downstream fine-tuning of distilled models.
-- **Profiling and Optimization:** Monitors GPU utilization and optimizes memory usage with gradient checkpointing and automatic mixed precision.
+- **Model Loading Optimizations:** Supports optimized model loading using Unsloth, Liger Kernel, Flash Attention etc.
 - **Easy Integration:** Compatible with popular libraries like Hugging Face Transformers, PyTorch, and DeepSpeed.
-
 
 Requirements
 ============
 
-* Python 3.9+
-* Works on Linux, Windows, macOS
+* Python 3.12+
+* Works on Linux, macOS
 
 Install
 =======
@@ -53,74 +57,66 @@ The quick way:
 
 Data
 ======
-- Training Data available from:
-- - [dolly](https://huggingface.co/datasets/MiniLLM/dolly),
-- - [self-inst](https://huggingface.co/datasets/MiniLLM/self-inst),
-- - [vicuna](https://huggingface.co/datasets/MiniLLM/Vicuna),
-- - [sinst](https://huggingface.co/datasets/MiniLLM/sinst), and
-- - [uinst](https://huggingface.co/datasets/MiniLLM/uinst)
-- The plain-text corpus $\mathcal{D}_\text{PT}$ can be download from the HugginFace datasets [repository](https://huggingface.co/datasets/openwebtext). For reproducibility, we recommend you to use the following preprocessed data.
-- The processed data can be downloaded from the following links: [dolly](https://huggingface.co/datasets/MiniLLM/dolly-processed), [openwebtext](https://huggingface.co/datasets/MiniLLM/openwebtext-processed), [roberta-corpus](https://huggingface.co/datasets/MiniLLM/roberta-corpus-processed).
+We support any HuggingFace dataset in ShareGPT or Alpaca formats.
 
 Quick Start
 ===========
 Here's a quick example to get started with DistillFlow:
 
-.. code-block:: python
+1. Create a training config, specifying your teacher model, student model,
+huggingface dataset and the distillation type.
 
-   from distillflow import DistillConfig, DistillPipeline
+Here is a quick config to get started:
 
-   # 1. Set up the configuration for the distillation process
-   config = DistillConfig(
-       teacher_model='EleutherAI/gpt-neo-2.7B',  # Choose the teacher model
-       student_model='distilbert-base-uncased',   # Choose the student model
-       training_data='dolly/self-instruct',       # Training dataset (default)
-       prompt_template="Summarize: {input_text}", # Optional prompt template
-       max_epochs=3,                              # Customize training parameters
-       learning_rate=1e-4
-   )
+.. code-block:: yaml
 
-   # 2. Create the distillation pipeline with the specified configuration
-   pipeline = DistillPipeline(config)
+    student_model:
+        model_name_or_path: Qwen/Qwen2-1.5B
+    teacher_model:
+        model_name_or_path: Qwen/Qwen2-7B
+    data:
+      text_field: "text"
+      train_datasets:
+        - path: mlabonne/FineTome-100k
+          template: sharegpt
+    distill:
+        type: logits
+        max_seq_length: 1024
+        sft_config:
+            output_dir: './results'
+            num_train_epochs: 3
+            per_device_train_batch_size: 1
+            gradient_accumulation_steps: 8
+            eval_strategy: steps
+            eval_steps: 100
+            save_steps: 2000
+            learning_rate: 2.0e-5
+            weight_decay: 0.05
+            warmup_ratio: 0.1
+            lr_scheduler_type: 'cosine'
+            max_grad_norm: 1.0
+            group_by_length: False
+      distillation_args:
+            temperature: 2.0
+            alpha: 0.5
 
-   # 3. Start the distillation process
-   pipeline.distill()
+2. Run the command:
 
-   # (Optional) Test new configurations or add custom distillation workflows
-   config.prompt_template = "Rewrite the following: {input_text}"
-   pipeline.update_config(config)
-   pipeline.distill()  # Run with updated settings
+.. code-block:: bash
 
-   # Optionally fine-tune the distilled model
-   pipeline.fine_tune(training_data)
+    accelerate launch src/trainer.py --config <your_config_path>
 
-Documentation
-=============
+Acknowledgement
+=======
+The repo structure is inspired by `LLamaFactory <https://github.com/hiyouga/LLaMA-Factory>`_.
+The distillation training techniques are inspired by the works of `DistillKit <https://github.com/arcee-ai/DistillKit>`_.
 
-Check out our full documentation at: https://distillflow.readthedocs.io/
-
-Configurable Parameters
-=======================
-DistillFlow allows users to specify and customize several parameters to control the distillation process:
-
-- **`teacher_model`**: The path or name of the pretrained teacher model to distill from.
-- **`student_model`**: The path or name of the student model to train.
-- **`training_data`**: Location or name of the dataset to be used (default: `dolly/self-instruct`).
-- **`prompt_template`**: Custom prompt template for text-based distillation tasks.
-- **`max_epochs`**: Number of training epochs.
-- **`learning_rate`**: Learning rate for training.
-
-For a complete list of configuration options, refer to our `documentation <https://distillflow.readthedocs.io/en/latest/config.html>`_.
-
-Contributing
-============
-We welcome contributions! Please see our `CONTRIBUTING.rst <https://github.com/username/DistillFlow/CONTRIBUTING.rst>`_ file for more details on how to get involved.
 
 License
 =======
-Distributed under the MIT License. See `LICENSE <https://github.com/username/DistillFlow/LICENSE>`_ for more information.
+Distributed under the Apache-2.0 License. See `LICENSE <https://github.com/horus-ai-labs/DistillFlow/blob/main/LICENSE>`_ for more information.
 
 Community and Support
 =====================
-- Join the discussion on our `GitHub Discussions <https://github.com/username/DistillFlow/discussions>`_.
-- Report issues and request features using our `Issue Tracker <https://github.com/username/DistillFlow/issues>`_.
+- Join the discussion on our `GitHub Discussions <https://github.com/horus-ai-labs/DistillFlow/discussions>`_.
+- Report issues and request features using our `Issue Tracker <https://github.com/horus-ai-labs/DistillFlow/issues>`_.
