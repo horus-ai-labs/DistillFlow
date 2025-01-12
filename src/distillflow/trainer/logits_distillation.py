@@ -31,7 +31,8 @@ class LogitsTrainer(SFTTrainer):
         eval_dataset = dataset_module["eval_dataset"]
         self.max_seq_length = max_seq_length
         self.device = get_current_device()
-        # self.teacher_model = self.teacher_model.to(self.device)
+        if self.device.type == "mps":
+            self.teacher_model = self.teacher_model.to(self.device)
         model = model.to(self.device)
 
         if self.accelerator is not None:
