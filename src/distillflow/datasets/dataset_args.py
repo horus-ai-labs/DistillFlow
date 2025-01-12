@@ -1,12 +1,15 @@
 from dataclasses import dataclass, field
 from enum import Enum, unique
-from typing import Optional, Literal, Dict, Any, List
+from typing import Optional, Literal, Dict, Any, List, Union
+
+from datasets import Dataset
 
 from .template import Template
 
 @dataclass
 class DatasetArgs:
     path: str = ""
+    dataset: Dataset = None
     num_samples: Optional[int] = None
     load_from_cache_file: bool = True
     template: Optional[Template] = None
@@ -23,7 +26,7 @@ class DataArgs:
     )
     train_datasets: Optional[List[DatasetArgs]] = field(
         default=None,
-        metadata={"help": "The names of dataset(s) to use for training. Provide as a list of DatasetArgs."},
+        metadata={"help": "The dataset(s) to use for training. Provide as a list of DatasetArgs."},
     )
     eval_datasets: Optional[List[DatasetArgs]] = field(
         default=None,

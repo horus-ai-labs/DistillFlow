@@ -4,11 +4,6 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser(description="Deploy a Python project to RunPod.")
-# parser.add_argument(
-#     "--entry-point",
-#     required=True,
-#     help="The entry point file to execute in the GitHub repository. e.g anthropic_sft.py"
-# )
 parser.add_argument(
     "--gpu-type",
     required=False,

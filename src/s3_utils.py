@@ -3,17 +3,33 @@ import boto3
 from datetime import datetime
 
 
-def upload_to_s3(bucket_name, dir_path='src/results'):
+def upload_to_s3(bucket_name, dir_path='src/results', access_key=None, secret_key=None, region=None):
     """
-    Upload a file to an S3 bucket.
+    Upload a file to an S3 bucket with flexible credential handling.
 
     :param bucket_name: Bucket to upload to
+    :param dir_path: Directory path containing files to upload
+    :param access_key: Optional AWS access key. If None, will check S3_ACCESS_KEY env var
+    :param secret_key: Optional AWS secret key. If None, will check S3_SECRET_KEY env var
+    :param region: Optional AWS region. If None, will check AWS_REGION env var or default to us-west-2
     :return: True if file was uploaded, else False
     """
-    # Get environment variables for AWS credentials
-    aws_access_key = os.getenv('S3_ACCESS_KEY')
-    aws_secret_key = os.getenv('S3_SECRET_KEY')
-    aws_region = os.getenv('AWS_REGION', 'us-west-2')
+    # Handle credentials with parameter priority over environment variables
+    aws_access_key = access_key or os.getenv('S3_ACCESS_KEY')
+    aws_secret_key = secret_key or os.getenv('S3_SECRET_KEY')
+    aws_region = region or os.getenv('AWS_REGION', 'us-west-2')
+
+    # Validate credentials
+    if not aws_access_key or not aws_secret_key:
+        raise ValueError("AWS credentials not found. Please provide them as parameters or set S3_ACCESS_KEY and S3_SECRET_KEY environment variables.")
+
+    # Set credentials in environment if they came from parameters
+    if access_key:
+        os.environ['S3_ACCESS_KEY'] = access_key
+    if secret_key:
+        os.environ['S3_SECRET_KEY'] = secret_key
+    if region:
+        os.environ['AWS_REGION'] = region
 
     # Validate credentials
     if not aws_access_key or not aws_secret_key:
@@ -42,29 +58,5 @@ def upload_to_s3(bucket_name, dir_path='src/results'):
             except Exception as e:
                 print(f"An error occurred: {e}")
                 raise Exception("Cannot upload file")
-                # # Use boto3 client
-    # try:
-    #     s3_client = boto3.client(
-    #         's3',
-    #         aws_access_key_id=aws_access_key,
-    #         aws_secret_access_key=aws_secret_key,
-    #         region_name=aws_region
-    #     )
-    #
-    #     if object_name is None:
-    #         object_name = file_name
-    #
-    #     # Upload file
-    #     s3_client.upload_file(file_name, bucket_name, object_name)
-    #     print(f"File {file_name} uploaded to {bucket_name}/{object_name}")
-    #     return True
 
-    # except FileNotFoundError:
-    #     print(f"Error: The file {file_name} was not found.")
-    #     return False
-    # except NoCredentialsError:
-    #     print("Error: No AWS credentials found.")
-    #     return False
-    # except PartialCredentialsError:
-    #     print("Error: Incomplete AWS credentials.")
-    #     return False
+

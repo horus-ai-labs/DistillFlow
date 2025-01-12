@@ -59,6 +59,8 @@ def main():
 
     # print(teacher_model.config)
     # exit()
+    teacher_model_args = ModelArguments(**config["teacher_model"])
+    teacher_model = load_model(teacher_model_args, finetuning_args=FinetuningArguments(), is_trainable=False)
 
     #TODO: hugging face recommends another way for placing models on a device. Check this again!
     # student_model = student_model.to(device)
@@ -80,7 +82,6 @@ def main():
     # Load tokenizer and dataset
     tokenizer_template = config.get("tokenizer", {}).get("template", None)
     tokenizer = load_tokenizer(student_model_args, template=tokenizer_template)["tokenizer"]
-    # tokenizer.
 
     print(tokenizer)
 

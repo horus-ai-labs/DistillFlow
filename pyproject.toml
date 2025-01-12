@@ -36,6 +36,8 @@ liger-kernel = { version = "^0.5.2", markers = "sys_platform == 'linux'" }
 triton = { version = "3.0.0", markers = "sys_platform == 'linux'" }
 boto3 = "^1.35.87"
 deepspeed = "^0.15.4"
+google-cloud-compute = "^1.23.0"
+kubernetes = "^31.0.0"
 
 [build-system]
 requires = ["poetry-core"]

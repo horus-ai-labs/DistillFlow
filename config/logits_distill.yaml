@@ -53,4 +53,4 @@ distill:
     max_grad_norm: 1.0
   distillation_args:
     temperature: 2.0
-    alpha: 0.0
+    alpha: 0.5

@@ -1,16 +1,12 @@
-import json
-import os
 from functools import partial
-from typing import TypedDict, Optional, Dict, Any, Sequence, Literal, Union, List
+from typing import TypedDict, Optional, Dict, Any, List
 
 import numpy as np
-from datasets import DatasetDict, load_dataset, Dataset, IterableDataset, concatenate_datasets, interleave_datasets
-from transformers import PreTrainedTokenizer, training_args
-from transformers.utils import cached_file
+from datasets import DatasetDict, load_dataset, Dataset, concatenate_datasets, interleave_datasets
+from transformers import PreTrainedTokenizer
 
 from .dataset_args import DatasetArgs, DataArgs
 from ..common import get_logger
-from ..model.args import ModelArguments
 
 DATA_CONFIG = "dataset_info.json"
 
@@ -60,15 +56,22 @@ def _load_dataset(
 
         column_names = list(next(iter(dataset)).keys())
 
-        dataset = dataset.map(
-            partial(dataset_args.template.convert),
-            batched=False,
-            remove_columns=column_names,
-            load_from_cache_file=dataset_args.load_from_cache_file
-        )
+        if data_args.streaming:
+            dataset = dataset.map(
+                partial(dataset_args.template.convert),
+                batched=False,
+                remove_columns=column_names,
+            )
+        else:
+            dataset = dataset.map(
+                partial(dataset_args.template.convert),
+                batched=False,
+                remove_columns=column_names,
+                load_from_cache_file=dataset_args.load_from_cache_file
+            )
 
         if data_args.text_field is not None:
-            dataset = dataset.map(partial(to_text, data_args.text_field, tokenizer), batched=False, load_from_cache_file=dataset_args.load_from_cache_file, remove_columns=dataset.column_names)
+            dataset = dataset.map(partial(to_text, data_args.text_field, tokenizer), batched=False, remove_columns=dataset.column_names)
         return dataset
 
 def to_text(field_name, tokenizer: PreTrainedTokenizer, example: Dict[str, Any]) -> Dict[str, Any]:
@@ -147,7 +150,7 @@ def _get_merged_dataset(
     dataset_list: List[DatasetArgs],
     data_args: DataArgs,
     tokenizer: PreTrainedTokenizer
-) -> Optional[Union["Dataset", "IterableDataset"]]:
+) -> Optional[Dataset]:
     r"""
     Gets the merged datasets in the standard format.
     """
@@ -157,8 +160,7 @@ def _get_merged_dataset(
 
     return merge_dataset(datasets, data_args, data_args.seed)
 
-def merge_dataset(all_datasets: List[Union["Dataset", "IterableDataset"]], data_args: "DataArgs"
-                  , seed) -> Union["Dataset", "IterableDataset"]:
+def merge_dataset(all_datasets: List[Dataset], data_args: DataArgs, seed) -> Dataset:
     r"""
     Merges multiple datasets to a unified dataset.
     """

@@ -1,4 +1,4 @@
-FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
+FROM nvcr.io/nvidia/pytorch:24.12-py3
 
 # Set working directory
 WORKDIR /app
@@ -12,7 +12,8 @@ RUN apt-get update && \
     gcc \
     g++ \
     make \
-    && rm -rf /var/lib/apt/lists/*
+    vim \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Clone repository
 RUN git clone https://github.com/horus-ai-labs/DistillFlow.git .
@@ -26,5 +27,5 @@ RUN pip install --no-cache-dir poetry flash-attn
 RUN poetry config virtualenvs.create false
 
 # Install project dependencies
-RUN poetry lock --no-update && \
+RUN poetry lock && \
     poetry install
