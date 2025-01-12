@@ -2,6 +2,7 @@ import argparse
 import os
 import subprocess
 import time
+from datetime import datetime
 
 from google.cloud import compute_v1
 from google.oauth2 import service_account
@@ -53,7 +54,7 @@ def create_instance(project_id, zone, instance_name, machine_type, gpu_count,
         initialize_params=compute_v1.AttachedDiskInitializeParams(
             disk_size_gb=boot_disk_size,
             disk_type=f"zones/{zone}/diskTypes/pd-standard",
-            source_image=f"projects/{project_id}/global/images/py12-a100-image"
+            source_image=f"projects/{project_id}/global/images/py12-cu124-20250111"
             # source_image="projects/cos-cloud/global/images/family/cos-stable"
             # source_image="projects/ml-images/global/images/c0-deeplearning-common-cu124-v20241118-debian-11-py310"
         ),
@@ -210,10 +211,10 @@ echo "Startup script completed" >> /tmp/startup-log.txt
                             key="ssh-keys",
                             value=f"{current_user}:{pub_key}"  # Replace USER with your desired username
                         ),
-                        # compute_v1.Items(
-                        #     key="startup-script",
-                        #     value=startup_script
-                        # )
+                        compute_v1.Items(
+                            key="startup-script",
+                            value=startup_script
+                        )
             ]
         )
     )
@@ -312,8 +313,12 @@ def main():
     # Remove None values
     env_vars = {k: v for k, v in env_vars.items() if v is not None}
 
+    now = datetime.now()
+    # Format the date as YYYYMMDD
+    formatted_date = now.strftime("%Y%m%d")
+
     # Create a unique instance name using timestamp
-    instance_name = f"{machine_type}-{int(time.time())}"
+    instance_name = f"{machine_type}-{formatted_date}"
 
     try:
         print(f"Creating instance {instance_name}...")
