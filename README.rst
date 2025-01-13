@@ -55,6 +55,15 @@ The quick way:
 
     pip install distillflow
 
+Or clone the repository:
+
+.. code-block:: bash
+
+    git clone git@github.com:horus-ai-labs/DistillFlow.git
+    cd DistillFlow
+    pip3 install poetry
+    poetry install
+
 Data
 ======
 We support any HuggingFace dataset in ShareGPT or Alpaca formats.
@@ -63,8 +72,11 @@ Quick Start
 ===========
 Here's a quick example to get started with DistillFlow:
 
-1. Create a training config, specifying your teacher model, student model,
+Create a training config, specifying your teacher model, student model,
 huggingface dataset and the distillation type.
+
+Use one of the existing test configs in `config` folder. The `local_distill.yaml`
+works for Mac.
 
 Here is a quick config to get started:
 
@@ -100,7 +112,7 @@ Here is a quick config to get started:
             temperature: 2.0
             alpha: 0.5
 
-2. Run the command:
+Run the command:
 
 .. code-block:: bash
 
