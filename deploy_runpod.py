@@ -2,6 +2,16 @@ import runpod
 import time
 import argparse
 import os
+import random
+import string
+
+def generate_random_string(length=5):
+    """Generate a random string of letters and digits."""
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
+# def persist_env_var(name, value):
+#     with open("~/.zshrc", "a") as f:
+#         f.write(f'export {name}="{value}"\n')
 
 parser = argparse.ArgumentParser(description="Deploy a Python project to RunPod.")
 parser.add_argument(
@@ -31,14 +41,33 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-# Replace with your RunPod API Key
+if not os.getenv("RUNPOD_API_KEY"):
+    runpod_api_key = input(f"Enter the value for 'RUNPOD_API_KEY': ")
+    os.environ['RUNPOD_API_KEY'] = runpod_api_key
+
+if not os.getenv("S3_ACCESS_KEY"):
+    s3_access_key = input(f"Enter the value for aws access key with access to s3: ")
+    os.environ['S3_ACCESS_KEY'] = s3_access_key
+    # persist_env_var("S3_ACCESS_KEY", s3_access_key)
+
+if not os.getenv("S3_SECRET_KEY"):
+    s3_secret_key = input(f"Enter the value for for aws secret key with access to s3: ")
+    os.environ['S3_SECRET_KEY'] = s3_secret_key
+
 RUNPOD_API_KEY = os.getenv("RUNPOD_API_KEY")
+if RUNPOD_API_KEY == "":
+    raise Exception("Please set 'RUNPOD_API_KEY'")
 S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
+if S3_ACCESS_KEY == "":
+    raise Exception("Please set 'S3_ACCESS_KEY'")
 S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
+if S3_SECRET_KEY == "":
+    raise Exception("Please set 'S3_SECRET_KEY'")
 
 # GitHub repository URL and script settings
 GITHUB_REPO_URL = "https://github.com/horus-ai-labs/DistillFlow.git"
 
+user = os.getenv("USER")
 # Initialize RunPod client
 runpod.api_key = RUNPOD_API_KEY
 print("Endpoints are ", runpod.get_endpoints())
@@ -46,9 +75,10 @@ print("Endpoints are ", runpod.get_endpoints())
 # Launch the pod
 print("Launching pod...")
 
-resp = runpod.create_pod(name="pod for llama test", image_name="horuslabs/distillflow:runpod-linux-v3",
+resp = runpod.create_pod(name=f"generated from script - {user} - {generate_random_string()}", image_name="horuslabs/distillflow:runpod-linux-v4",
                          gpu_type_id=args.gpu_type, gpu_count=args.gpu_count, start_ssh=True, volume_in_gb=args.volume_in_gb,container_disk_in_gb=args.container_disk_in_gb,
-                         env={"GITHUB_REPO": GITHUB_REPO_URL, "S3_ACCESS_KEY": S3_ACCESS_KEY, "S3_SECRET_KEY": S3_SECRET_KEY})
+                         env={"GITHUB_REPO": GITHUB_REPO_URL, "S3_ACCESS_KEY": S3_ACCESS_KEY, "S3_SECRET_KEY": S3_SECRET_KEY}
+                         )
 pod_id = resp['id']
 
 time.sleep(60)
@@ -101,3 +131,6 @@ while True:
 
 #  \
 #                              poetry run python ${ENTRY_POINT}
+
+# spot instances
+# scp enabled
