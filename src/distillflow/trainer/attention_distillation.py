@@ -1,6 +1,7 @@
 from typing import Union, Optional
 
 import torch
+from accelerate import Accelerator
 from datasets import IterableDataset
 from torch import nn
 import torch.nn.functional as F
@@ -10,46 +11,40 @@ from trl import SFTConfig, SFTTrainer
 from distillflow.common import get_current_device
 from distillflow.datasets.loader import DatasetModule
 from distillflow.trainer.AdaptationLayer import AdaptationLayer
-
+from distillflow.trainer.args import DistillConfig
 
 class AttentionTrainer(SFTTrainer):
     def __init__(self,
-                 model: Union[PreTrainedModel, nn.Module, str],
+                 accelerator: Accelerator,
+                 config: DistillConfig,
+                 teacher_model: PreTrainedModel,
+                 model: PreTrainedModel,
                  dataset_module: DatasetModule,
-                 args: Optional[SFTConfig] = None,
-                 tokenizer: Optional[PreTrainedTokenizerBase] = None,
-                 max_seq_length: Optional[int] = None,
-                 dataset_text_field: Optional[str] = None,
-                 teacher_model: Optional[Union[PreTrainedModel, nn.Module, str]] = None,
-                 distillation_args: Optional[dict] = None,
-                 strategy="interpolate",
-                 selection_indices=None,
-                 weights=None
+                 tokenizer: PreTrainedTokenizerBase
                  ):
         self.teacher_model = teacher_model
-        self.distillation_args = distillation_args
+        self.config = config
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
         self.device = get_current_device()
-        self.strategy = strategy
         self.adaptation_layer = AdaptationLayer(
             model.config.hidden_size,
             teacher_model.config.hidden_size,
             model.config.num_hidden_layers,
             teacher_model.config.num_hidden_layers,
             dtype=torch.float16,
-            strategy=strategy,
-            selection_indices=selection_indices,
-            weights=weights
+            strategy=config.strategy,
+            selection_indices=config.selection_indices,
+            weights=config.weights
         ).to(self.device)
 
-        if isinstance(train_dataset, IterableDataset) and args.max_steps == -1:
+        if isinstance(train_dataset, IterableDataset) and config.sft_config.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
 
-        super().__init__(model=model, args=args, train_dataset=train_dataset,
+        super().__init__(model=model, args=config.sft_config, train_dataset=train_dataset,
                          eval_dataset=eval_dataset, tokenizer=tokenizer,
-                         max_seq_length=max_seq_length,
-                         dataset_text_field=dataset_text_field)
+                         max_seq_length=config.max_seq_length,
+                         dataset_text_field=config.dataset_text_field)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         # Forward pass for the student model
@@ -73,7 +68,7 @@ class AttentionTrainer(SFTTrainer):
         )
 
         # Combine losses
-        total_loss = (1 - self.distillation_args["alpha"]) * loss + self.distillation_args["alpha"] * attention_loss
+        total_loss = ((1 - self.config.alpha) * loss + self.config.alpha * attention_loss)  / self.args.gradient_accumulation_steps
 
         return (total_loss, student_outputs) if return_outputs else total_loss
 
@@ -92,10 +87,9 @@ class AttentionTrainer(SFTTrainer):
         num_layers = len(student_attentions)
 
         self.adaptation_layer = self.adaptation_layer.to(self.device)
-        # adapted_student_hidden_states = self.adaptation_layer(student_hidden_states)
 
         for student_idx, teacher_idx in self.adaptation_layer.layer_mapping.items():
-            if self.strategy == "weighted":
+            if self.config.strategy == "weighted":
                 teacher_attention = torch.zeros_like(teacher_attentions[0])
                 for idx, weight in teacher_idx.items():
                     teacher_attention = weight * teacher_attentions[idx]

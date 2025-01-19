@@ -37,6 +37,7 @@ triton = { version = "3.0.0", markers = "sys_platform == 'linux'" }
 boto3 = "^1.35.87"
 deepspeed = "^0.15.4"
 google-cloud-compute = "^1.23.0"
+config = "^0.5.1"
 
 [build-system]
 requires = ["poetry-core"]

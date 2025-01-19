@@ -2,13 +2,13 @@ import inspect
 from transformers import PretrainedConfig
 from ..common import logger
 
-from distillflow.model.args import ModelArguments
+from distillflow.model.args import ModelArgs
 
 logger = logger.get_logger(__name__)
 
 def apply_liger_kernel(
     config: PretrainedConfig,
-    model_args: ModelArguments,
+    model_args: ModelArgs,
     is_trainable: bool,
     require_logits: bool,
 ) -> None:

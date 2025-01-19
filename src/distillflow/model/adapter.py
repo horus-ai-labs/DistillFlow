@@ -6,7 +6,7 @@ from peft import LoraConfig, LoraModel, PeftModel, TaskType, get_peft_model
 from transformers.integrations import is_deepspeed_zero3_enabled
 from transformers.modeling_utils import is_fsdp_enabled
 
-from .args import ModelArguments
+from .args import ModelArgs
 from .finetuning_args import FinetuningArguments
 from ..common.logger import get_logger
 from .unsloth import get_unsloth_peft_model, load_unsloth_peft_model
@@ -28,13 +28,12 @@ def _setup_full_tuning(
         return
 
     logger.info("Fine-tuning method: Full")
-    # forbidden_modules = get_forbidden_modules(model.config, finetuning_args)
     for name, param in model.named_parameters():
         if cast_trainable_params_to_fp32:
             param.data = param.data.to(torch.float32)
 
 def _setup_freeze_tuning(
-        model: "PreTrainedModel",
+        model: PreTrainedModel,
         finetuning_args: "FinetuningArguments",
         is_trainable: bool,
         cast_trainable_params_to_fp32: bool,
@@ -117,7 +116,7 @@ def _setup_freeze_tuning(
 def _setup_lora_tuning(
         config: PretrainedConfig,
         model: PreTrainedModel,
-        model_args: ModelArguments,
+        model_args: ModelArgs,
         finetuning_args: FinetuningArguments,
         is_trainable: bool,
         cast_trainable_params_to_fp32: bool,
@@ -176,18 +175,6 @@ def _setup_lora_tuning(
         else:
             target_modules = finetuning_args.lora_target
 
-        # if finetuning_args.use_llama_pro:
-        #     target_modules = find_expanded_modules(model, target_modules, finetuning_args.freeze_trainable_layers)
-
-        # target_modules = patch_target_modules(model.config, finetuning_args, target_modules)
-
-        # if (
-        #         finetuning_args.use_dora
-        #         and getattr(model, "quantization_method", None) is not None
-        #         and getattr(model, "quantization_method", None) != QuantizationMethod.BITS_AND_BYTES
-        # ):
-        #     raise ValueError("DoRA is not compatible with PTQ-quantized models.")
-
         if model_args.resize_vocab and finetuning_args.additional_target is None:
             input_embeddings = model.get_input_embeddings()
             output_embeddings = model.get_output_embeddings()
@@ -237,7 +224,7 @@ def _setup_lora_tuning(
 def init_adapter(
         config: "PretrainedConfig",
         model: "PreTrainedModel",
-        model_args: "ModelArguments",
+        model_args: "ModelArgs",
         finetuning_args: "FinetuningArguments",
         is_trainable: bool,
 ) -> "PreTrainedModel":
@@ -259,11 +246,12 @@ def init_adapter(
     # 1. is_trainable and not pure_bf16 and not badam and quantization_bit is not None (qlora)
     # 2. is_trainable and not pure_bf16 and not badam and not zero3 and not fsdp (zero3 or fsdp already in fp32)
     cast_trainable_params_to_fp32 = False
+    quantization_args = model_args.quantization_args
     if not is_trainable:
         pass
     elif finetuning_args.pure_bf16:
         logger.info("Pure bf16 / BAdam detected, remaining trainable params in half precision.")
-    elif model_args.quantization_bit is None and (is_deepspeed_zero3_enabled() or is_fsdp_enabled()):
+    elif quantization_args is not None and quantization_args.quantization_bit is None and (is_deepspeed_zero3_enabled() or is_fsdp_enabled()):
         logger.info("ZeRO3 / FSDP detected, remaining trainable params in float32.")
     else:
         logger.info("Upcasting trainable params to float32.")

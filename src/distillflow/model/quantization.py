@@ -6,9 +6,9 @@ from transformers.integrations import is_deepspeed_zero3_enabled
 from transformers.modeling_utils import is_fsdp_enabled
 from transformers.utils.versions import require_version
 
-from .args import ModelArguments
+from .args import ModelArgs, QuantizationArgs
 from ..common.logger import get_logger
-from ..common import get_current_device
+from ..common import get_current_device, infer_optim_dtype
 
 from transformers import PretrainedConfig, PreTrainedTokenizer
 
@@ -75,7 +75,7 @@ class QuantizationMethod(str, Enum):
 def configure_quantization(
         config: PretrainedConfig,
         tokenizer: PreTrainedTokenizer,
-        model_args: ModelArguments,
+        quantization_args: QuantizationArgs,
         init_kwargs: Dict[str, Any],
 ) -> None:
     r"""
@@ -126,19 +126,23 @@ def configure_quantization(
     #     init_kwargs["max_memory"] = get_max_memory()
     #     logger.info("Quantizing model to {} bit with AutoGPTQ.".format(model_args.export_quantization_bit))
 
-    if model_args.quantization_bit is not None:  # on-the-fly
-        if model_args.quantization_method == QuantizationMethod.BITS_AND_BYTES.value:
-            if model_args.quantization_bit == 8:
+    if quantization_args is None:
+        return
+
+    torch_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
+    if quantization_args.quantization_bit is not None:  # on-the-fly
+        if quantization_args.quantization_method == QuantizationMethod.BITS_AND_BYTES.value:
+            if quantization_args.quantization_bit == 8:
                 require_version("bitsandbytes>=0.37.0", "To fix: pip install bitsandbytes>=0.37.0")
                 init_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_8bit=True)
-            elif model_args.quantization_bit == 4:
+            elif quantization_args.quantization_bit == 4:
                 require_version("bitsandbytes>=0.39.0", "To fix: pip install bitsandbytes>=0.39.0")
                 init_kwargs["quantization_config"] = BitsAndBytesConfig(
                     load_in_4bit=True,
-                    bnb_4bit_compute_dtype=model_args.compute_dtype,
-                    bnb_4bit_use_double_quant=model_args.double_quantization,
-                    bnb_4bit_quant_type=model_args.quantization_type,
-                    bnb_4bit_quant_storage=model_args.compute_dtype,  # crucial for fsdp+qlora
+                    bnb_4bit_compute_dtype=torch_dtype,
+                    bnb_4bit_use_double_quant=quantization_args.double_quantization,
+                    bnb_4bit_quant_type=quantization_args.quantization_type,
+                    bnb_4bit_quant_storage=torch_dtype,  # crucial for fsdp+qlora
                 )
             else:
                 raise ValueError("Bitsandbytes only accepts 4-bit or 8-bit quantization.")
@@ -146,17 +150,17 @@ def configure_quantization(
             # Do not assign device map if:
             # 1. deepspeed zero3 or fsdp (train)
             # 2. auto quantization device map (inference)
-            if is_deepspeed_zero3_enabled() or is_fsdp_enabled() or model_args.quantization_device_map == "auto":
-                if model_args.quantization_bit != 4:
+            if is_deepspeed_zero3_enabled() or is_fsdp_enabled() or quantization_args.quantization_device_map == "auto":
+                if quantization_args.quantization_bit != 4:
                     raise ValueError("Only 4-bit quantized model can use fsdp+qlora or auto device map.")
 
                 require_version("bitsandbytes>=0.43.0", "To fix: pip install bitsandbytes>=0.43.0")
             else:
                 init_kwargs["device_map"] = {"": get_current_device()}  # change auto device map for inference
 
-            logger.info("Quantizing model to {} bit with bitsandbytes.".format(model_args.quantization_bit))
-        elif model_args.quantization_method == QuantizationMethod.HQQ.value:
-            if model_args.quantization_bit not in [8, 6, 5, 4, 3, 2, 1]:
+            logger.info("Quantizing model to {} bit with bitsandbytes.".format(quantization_args.quantization_bit))
+        elif quantization_args.quantization_method == QuantizationMethod.HQQ.value:
+            if quantization_args.quantization_bit not in [8, 6, 5, 4, 3, 2, 1]:
                 raise ValueError("HQQ only accepts 1/2/3/4/5/6/8-bit quantization.")
 
             if is_deepspeed_zero3_enabled() or is_fsdp_enabled():
@@ -164,11 +168,11 @@ def configure_quantization(
 
             require_version("hqq", "To fix: pip install hqq")
             init_kwargs["quantization_config"] = HqqConfig(
-                nbits=model_args.quantization_bit, quant_zero=False, quant_scale=False, axis=0
+                nbits=quantization_args.quantization_bit, quant_zero=False, quant_scale=False, axis=0
             )  # use ATEN kernel (axis=0) for performance
-            logger.info("Quantizing model to {} bit with HQQ.".format(model_args.quantization_bit))
-        elif model_args.quantization_method == QuantizationMethod.EETQ.value:
-            if model_args.quantization_bit != 8:
+            logger.info("Quantizing model to {} bit with HQQ.".format(quantization_args.quantization_bit))
+        elif quantization_args.quantization_method == QuantizationMethod.EETQ.value:
+            if quantization_args.quantization_bit != 8:
                 raise ValueError("EETQ only accepts 8-bit quantization.")
 
             if is_deepspeed_zero3_enabled() or is_fsdp_enabled():
@@ -176,4 +180,4 @@ def configure_quantization(
 
             require_version("eetq", "To fix: pip install eetq")
             init_kwargs["quantization_config"] = EetqConfig()
-            logger.info("Quantizing model to {} bit with EETQ.".format(model_args.quantization_bit))
+            logger.info("Quantizing model to {} bit with EETQ.".format(quantization_args.quantization_bit))

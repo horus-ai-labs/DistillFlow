@@ -5,11 +5,11 @@ import torch
 from transformers import AutoTokenizer, PreTrainedTokenizerBase, PreTrainedTokenizer
 
 from distillflow.common import get_logger
-from distillflow.model.args import ModelArguments
+from distillflow.model.args import ModelArgs
 
 logger = get_logger(__name__)
 
-def get_init_kwargs(model_args: ModelArguments) -> Dict[str, Any]:
+def get_init_kwargs(model_args: ModelArgs) -> Dict[str, Any]:
     r"""
     Gets arguments to load config/tokenizer/model.
 
@@ -23,7 +23,7 @@ def get_init_kwargs(model_args: ModelArguments) -> Dict[str, Any]:
         "torch_dtype": torch.bfloat16,
     }
 
-def load_tokenizer(model_args: ModelArguments, template: str = None) -> PreTrainedTokenizer:
+def load_tokenizer(model_args: ModelArgs, template: str = None) -> PreTrainedTokenizer:
     try:
         tokenizer = AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,

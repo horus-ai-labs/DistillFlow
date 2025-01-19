@@ -1,23 +1,23 @@
 from typing import Any, Dict, Optional
 
-from ..common import get_current_device
+from ..common import get_current_device, infer_optim_dtype
 from ..common.logger import get_logger
 
 from transformers import PretrainedConfig, PreTrainedModel
 
-from .args import ModelArguments
+from .args import ModelArgs
 
 logger = get_logger(__name__)
 
 
 def _get_unsloth_kwargs(
-        config: PretrainedConfig, model_name_or_path: str, model_args: ModelArguments
+        config: PretrainedConfig, model_name_or_path: str, model_args: ModelArgs
 ) -> Dict[str, Any]:
     return {
         "model_name": model_name_or_path,
-        "max_seq_length": model_args.model_max_length or 4096,
-        "dtype": model_args.compute_dtype,
-        "load_in_4bit": model_args.quantization_bit == 4,
+        "max_seq_length": 4096,
+        "dtype": infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None)),
+        "load_in_4bit": model_args.quantization_args.quantization_bit == 4,
         "token": model_args.hf_hub_token,
         "device_map": {"": get_current_device()},
         "rope_scaling": getattr(config, "rope_scaling", None),
@@ -28,7 +28,7 @@ def _get_unsloth_kwargs(
 
 
 def load_unsloth_pretrained_model(
-        config: PretrainedConfig, model_args: ModelArguments
+        config: PretrainedConfig, model_args: ModelArgs
 ) -> Optional[PreTrainedModel]:
     r"""
     Optionally loads pretrained model with unsloth. Used in training.
@@ -47,7 +47,7 @@ def load_unsloth_pretrained_model(
 
 
 def get_unsloth_peft_model(
-        model: "PreTrainedModel", model_args: "ModelArguments", peft_kwargs: Dict[str, Any]
+        model: "PreTrainedModel", model_args: "ModelArgs", peft_kwargs: Dict[str, Any]
 ) -> "PreTrainedModel":
     r"""
     Gets the peft model for the pretrained model with unsloth. Used in training.
@@ -56,14 +56,14 @@ def get_unsloth_peft_model(
 
     unsloth_peft_kwargs = {
         "model": model,
-        "max_seq_length": model_args.model_max_length,
+        "max_seq_length": 4096,
         "use_gradient_checkpointing": "unsloth",
     }
     return FastLanguageModel.get_peft_model(**peft_kwargs, **unsloth_peft_kwargs)
 
 
 def load_unsloth_peft_model(
-        config: "PretrainedConfig", model_args: "ModelArguments", is_trainable: bool
+        config: "PretrainedConfig", model_args: "ModelArgs", is_trainable: bool
 ) -> "PreTrainedModel":
     r"""
     Loads peft model with unsloth. Used in both training and inference.

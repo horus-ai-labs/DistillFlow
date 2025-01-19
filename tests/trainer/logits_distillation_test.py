@@ -1,7 +1,7 @@
 import torch
 
 from datasets import Dataset
-from distillflow.model.args import ModelArguments
+from distillflow.model.args import ModelArgs
 from distillflow.model.finetuning_args import FinetuningArguments
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.trainer.logits_distillation import LogitsTrainer
@@ -15,7 +15,7 @@ data = {
 dataset = Dataset.from_dict(data)
 
 # Teacher and student models
-model_config = ModelArguments(
+model_config = ModelArgs(
     model_name_or_path="gpt2"
 )
 teacher = load_model(model_config, FinetuningArguments(), False)
