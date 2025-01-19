@@ -13,17 +13,20 @@ teacher_model:
   use_unsloth: false
   output_attentions: false
   enable_liger_kernel: true
-#  quantization_bit: 8
-#  quantization_method: gptq
+#  quantization_args:
+#    quantization_bit: 8
+#    quantization_method: gptq
 
 data:
   seed: 42
   text_field: "text"
   train_datasets:
     - path: mlabonne/FineTome-100k
-      template: sharegpt
+      template:
+        name: sharegpt
     - path: horus-ai-labs/WebInstructSub-150K
-      template: sharegpt
+      template:
+        name: sharegpt
   test_size: 0.1
   streaming: false
 
@@ -47,10 +50,9 @@ distill:
     weight_decay: 0.05
     warmup_ratio: 0.1
     lr_scheduler_type: 'cosine'
-    resume_from_checkpoint: null
     fp16: false
     bf16: true
     max_grad_norm: 1.0
-  distillation_args:
-    temperature: 2.0
-    alpha: 0.5
+  resume_from_checkpoint: null
+  temperature: 2.0
+  alpha: 0.5

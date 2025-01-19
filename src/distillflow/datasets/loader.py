@@ -5,7 +5,8 @@ import numpy as np
 from datasets import DatasetDict, load_dataset, Dataset, concatenate_datasets, interleave_datasets
 from transformers import PreTrainedTokenizer
 
-from .dataset_args import DatasetArgs, DataArgs
+from .args import DatasetArgs, DataArgs
+from .template import ShareGpt, Alpaca
 from ..common import get_logger
 
 logger = get_logger(__name__)
@@ -53,15 +54,20 @@ def _load_single_dataset(
 
         column_names = list(next(iter(dataset)).keys())
 
+        template = dataset_args.template
+        template_mapping = {
+            "sharegpt": ShareGpt(template.args),
+            "alpaca": Alpaca(template.args)
+        }
         if data_args.streaming:
             dataset = dataset.map(
-                partial(dataset_args.template.convert),
+                partial(template_mapping[template.name].convert),
                 batched=False,
                 remove_columns=column_names,
             )
         else:
             dataset = dataset.map(
-                partial(dataset_args.template.convert),
+                partial(template_mapping[template.name].convert),
                 batched=False,
                 remove_columns=column_names,
                 load_from_cache_file=dataset_args.load_from_cache_file
@@ -97,7 +103,6 @@ def split_dataset(dataset: Dataset, data_args: DataArgs, seed: int) -> DatasetDi
 
 def get_dataset(data_args: DataArgs,
                 tokenizer: PreTrainedTokenizer,
-                tokenize=False,
                 tokenizer_function=None) -> DatasetModule:
     # Load and preprocess dataset
     # with training_args.main_process_first(desc="load dataset"):
@@ -132,10 +137,7 @@ def get_dataset(data_args: DataArgs,
     if "validation" in dataset_dict:
         dataset_module["eval_dataset"] = dataset_dict["validation"]
 
-    if tokenize:
-        if tokenizer_function is None:
-            raise ValueError("Please pass a valid tokenizer function.")
-
+    if tokenizer_function is not None:
         dataset_module["train_dataset"] = dataset_module["train_dataset"].map(tokenizer_function,
                                               batched=True, num_proc=32, remove_columns=[data_args.text_field])
 

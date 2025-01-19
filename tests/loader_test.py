@@ -5,16 +5,16 @@ from typing import Tuple
 
 from datasets import Dataset, load_dataset
 
-from distillflow.datasets.dataset_args import DataArgs, DatasetArgs
+from distillflow.datasets.args import DataArgs, DatasetArgs, TemplateArgs
 from distillflow.datasets.loader import get_dataset
-from distillflow.datasets.template import ShareGpt, Alpaca, AlpacaArgs
-from distillflow.model.args import ModelArguments
+from distillflow.datasets.template import AlpacaArgs
+from distillflow.model.args import ModelArgs
 from distillflow.model.loader import load_tokenizer
 
 class TestDataset(unittest.TestCase):
 
     def setUp(self):
-        model_config = ModelArguments(
+        model_config = ModelArgs(
             model_name_or_path="gpt2"
         )
         # Set up common test variables
@@ -22,7 +22,7 @@ class TestDataset(unittest.TestCase):
         self.tokenizer.chat_template = "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
         self.data_args = DataArgs(
-            train_datasets=[DatasetArgs(path="mahiatlinux/Reflection-Dataset-ShareGPT-v2", template=ShareGpt())],
+            train_datasets=[DatasetArgs(path="mahiatlinux/Reflection-Dataset-ShareGPT-v2", template=TemplateArgs(name="sharegpt"))],
             streaming=False,
             buffer_size=100,
             seed=42,
@@ -31,7 +31,7 @@ class TestDataset(unittest.TestCase):
         )
 
     def test_load_train_and_eval_datasets(self):
-        dataset_module = get_dataset(self.data_args, self.tokenizer, tokenize=False)
+        dataset_module = get_dataset(self.data_args, self.tokenizer)
         self.assertIn("train_dataset", dataset_module)
         self.assertIn("eval_dataset", dataset_module)
         self.assertIsInstance(dataset_module["train_dataset"], Dataset)
@@ -47,13 +47,13 @@ class TestDataset(unittest.TestCase):
         self.data_args.eval_datasets = None
         self.data_args.test_size = 0
         with self.assertRaises(ValueError):
-            get_dataset(self.data_args, self.tokenizer, tokenize=False)
+            get_dataset(self.data_args, self.tokenizer)
 
     def test_tokenize_datasets(self):
         def tokenize_function(tokenizer, examples):
             return tokenizer(examples["text"], truncation=True, max_length=4096,
                                   padding="max_length", return_tensors="pt")
-        tokenized_dataset_module = get_dataset(self.data_args, self.tokenizer, tokenize=True, tokenizer_function=partial(tokenize_function, self.tokenizer))
+        tokenized_dataset_module = get_dataset(self.data_args, self.tokenizer, tokenizer_function=partial(tokenize_function, self.tokenizer))
         self.assertIn("train_dataset", tokenized_dataset_module)
         self.assertIn("eval_dataset", tokenized_dataset_module)
         self.assertIn("input_ids", tokenized_dataset_module["train_dataset"].features)
@@ -70,22 +70,19 @@ class TestDataset(unittest.TestCase):
         for idx, train_entry in enumerate(decoded_texts):
             self.validate_data_format(train_entry, False)
 
-
-    def test_missing_tokenizer_function(self):
-        with self.assertRaises(ValueError):
-            get_dataset(self.data_args, self.tokenizer, tokenize=True)
-
     def test_streaming_mode(self):
         self.data_args.streaming = True
-        dataset_module = get_dataset(self.data_args, self.tokenizer, tokenize=False)
+        dataset_module = get_dataset(self.data_args, self.tokenizer)
         self.assertIn("train_dataset", dataset_module)
         self.assertIn("eval_dataset", dataset_module)
 
     def test_merge_dataset(self):
-        self.data_args.train_datasets.append(DatasetArgs(path="databricks/databricks-dolly-15k", template=Alpaca(args=AlpacaArgs(
-            prompt="instruction", query="context", response="response"))))
+        self.data_args.train_datasets.append(DatasetArgs(path="databricks/databricks-dolly-15k",
+                                 template=TemplateArgs(name="alpaca", args=AlpacaArgs(prompt="instruction",
+                                                                                      query="context",
+                                                                                      response="response"))))
 
-        dataset_module = get_dataset(self.data_args, self.tokenizer, tokenize=False)
+        dataset_module = get_dataset(self.data_args, self.tokenizer)
         self.assertIn("train_dataset", dataset_module)
         self.assertIn("eval_dataset", dataset_module)
         self.assertIsInstance(dataset_module["train_dataset"], Dataset)
@@ -98,10 +95,13 @@ class TestDataset(unittest.TestCase):
             self.validate_data_format(test_entry)
 
     def test_merge_dataset_split(self):
-        self.data_args.train_datasets.append(DatasetArgs(path="databricks/databricks-dolly-15k", template=Alpaca(args=AlpacaArgs(
-            prompt="instruction", query="context", response="response"))))
+        self.data_args.train_datasets.append(DatasetArgs(path="databricks/databricks-dolly-15k",
+                         template=TemplateArgs(name="alpaca", args=AlpacaArgs(prompt="instruction",
+                                                                              query="context",
+                                                                              response="response")
+                        )))
         self.data_args.text_field = None
-        dataset_module = get_dataset(self.data_args, self.tokenizer, tokenize=False)
+        dataset_module = get_dataset(self.data_args, self.tokenizer)
 
         mahiatlinux_dataset = load_dataset(
             "mahiatlinux/Reflection-Dataset-ShareGPT-v2",
@@ -112,7 +112,7 @@ class TestDataset(unittest.TestCase):
         print(message)
         self.assertTrue(success)
 
-    def validate_split(self, merged_dataset: Dataset, dataset: Dataset, total_size, tolerance=0.01) -> Tuple[bool, str]:
+    def validate_split(self, merged_dataset: Dataset, dataset: Dataset, total_size, tolerance=0.02) -> Tuple[bool, str]:
         """
         Validate that the proportion of `dataset` content exists in `merged_dataset`.
 

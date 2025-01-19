@@ -6,7 +6,7 @@ from typing import Callable, Union, Any, Optional, Dict, Tuple
 import torch
 from transformers import PreTrainedModel
 
-from .args import ModelArguments
+from .args import ModelArgs
 from ..common import get_logger
 
 logger = get_logger(__name__)
@@ -111,7 +111,7 @@ def _fp32_forward_post_hook(
     return output.to(torch.float32)
 
 
-def prepare_model_for_training(model: "PreTrainedModel", model_args: ModelArguments) -> None:
+def prepare_model_for_training(model: "PreTrainedModel", model_args: ModelArgs) -> None:
     r"""
     Includes:
         (1) cast the layernorm in fp32

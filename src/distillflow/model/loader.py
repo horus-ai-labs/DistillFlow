@@ -2,7 +2,7 @@ import math
 import os
 from contextlib import nullcontext
 from types import MethodType
-from typing import TypedDict, Optional, Dict, Any, Tuple
+from typing import Dict, Any, Tuple
 
 import transformers
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
@@ -22,10 +22,10 @@ from .quantization import configure_quantization, QuantizationMethod
 from .tokenizer import load_tokenizer, get_init_kwargs
 from .unsloth import load_unsloth_pretrained_model
 from ..common.logger import get_logger
-from .args import ModelArguments
+from .args import ModelArgs
 import torch
 
-from ..common import count_parameters, infer_optim_dtype
+from ..common import count_parameters, infer_optim_dtype, get_current_device
 
 logger = get_logger(__name__)
 
@@ -38,7 +38,7 @@ def _register_autoclass(config: PretrainedConfig, model: "PreTrainedModel", toke
         tokenizer.__class__.register_for_auto_class()
 
 def _configure_attn_implementation(
-        config: PretrainedConfig, model_args: ModelArguments, is_trainable: bool
+        config: PretrainedConfig, model_args: ModelArgs, is_trainable: bool
 ) -> None:
     if getattr(config, "model_type", None) == "gemma2" and is_trainable:
         if model_args.flash_attn == "auto" or model_args.flash_attn == "fa2":
@@ -134,8 +134,8 @@ def get_unpad_data(attention_mask: "torch.Tensor") -> Tuple["torch.Tensor", "tor
     cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.int32), (1, 0))
     return indices, cu_seqlens, max_seqlen_in_batch
 
-def configure_packing(model_args: "ModelArguments", is_trainable: bool) -> None:
-    if not is_trainable or not model_args.block_diag_attn:
+def configure_packing(model_args: "ModelArgs", is_trainable: bool) -> None:
+    if not is_trainable:
         return
 
     require_version("transformers>=4.43.0,<=4.46.1", "To fix: pip install transformers>=4.43.0,<=4.46.1")
@@ -146,36 +146,33 @@ def configure_packing(model_args: "ModelArguments", is_trainable: bool) -> None:
 def _patch_config(
         config: PretrainedConfig,
         tokenizer: PreTrainedTokenizer,
-        model_args: ModelArguments,
+        model_args: ModelArgs,
         init_kwargs: Dict[str, Any],
         is_trainable: bool,
 ) -> None:
-    if model_args.compute_dtype is None:  # priority: bf16 > fp16 > fp32
-        if model_args.infer_dtype != "auto" and not is_trainable:
-            model_args.compute_dtype = getattr(torch, model_args.infer_dtype)
-        else:
-            model_args.compute_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
+    # if model_args.compute_dtype is None:  # priority: bf16 > fp16 > fp32
+    #     if model_args.infer_dtype != "auto" and not is_trainable:
+    #         model_args.compute_dtype = getattr(torch, model_args.infer_dtype)
+    #     else:
+    #         model_args.compute_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
 
     if is_torch_npu_available():
         use_jit_compile = os.environ.get("JIT_COMPILE", "0").lower() in ["true", "1"]
         torch.npu.set_compile_mode(jit_compile=use_jit_compile)
 
     _configure_attn_implementation(config, model_args, is_trainable)
-    # configure_rope(config, model_args, is_trainable)
-    # configure_longlora(config, model_args, is_trainable)
-    configure_quantization(config, tokenizer, model_args, init_kwargs)
-    # configure_moe(config, model_args, is_trainable)
-    # configure_visual_model(config)
+    configure_quantization(config, tokenizer, model_args.quantization_args, init_kwargs)
     configure_packing(model_args, is_trainable)
 
     if model_args.use_cache and not is_trainable:
         setattr(config, "use_cache", True)
         logger.info("Using KV cache for faster generation.")
 
+    torch_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
     if getattr(config, "model_type", None) == "qwen":
         setattr(config, "use_flash_attn", model_args.flash_attn == "fa2")
         for dtype_name, dtype in [("fp16", torch.float16), ("bf16", torch.bfloat16), ("fp32", torch.float32)]:
-            setattr(config, dtype_name, model_args.compute_dtype == dtype)
+            setattr(config, dtype_name, torch_dtype == dtype)
 
     if getattr(config, "model_type", None) == "qwen2" and is_trainable and model_args.flash_attn == "fa2":
         setattr(config, "use_cache", False)  # qwen2 does not support use_cache when using flash attn
@@ -190,12 +187,14 @@ def _patch_config(
     # cast data type of the model if:
     # 1. not deepspeed zero3 and not fsdp (keep zero3 or fsdp in float32)
     # 2. quantization_bit is not None (qlora)
-    if (not is_deepspeed_zero3_enabled() and not is_fsdp_enabled()) or model_args.quantization_bit is not None:
-        init_kwargs["torch_dtype"] = model_args.compute_dtype
+
+    quantization_args = model_args.quantization_args
+    if (not is_deepspeed_zero3_enabled() and not is_fsdp_enabled()) or quantization_args.quantization_bit is not None:
+        init_kwargs["torch_dtype"] = torch_dtype
 
         if init_kwargs["low_cpu_mem_usage"]:  # device map requires low_cpu_mem_usage=True
-            if "device_map" not in init_kwargs and model_args.device_map:
-                init_kwargs["device_map"] = model_args.device_map
+            if "device_map" not in init_kwargs:
+                init_kwargs["device_map"] = {"": get_current_device()}
 
             if init_kwargs.get("device_map", None) == "auto":
                 init_kwargs["offload_folder"] = model_args.offload_folder
@@ -245,7 +244,7 @@ def _resize_embedding_layer(model: "PreTrainedModel", tokenizer: "PreTrainedToke
 def _patch_model(
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizer,
-        model_args: ModelArguments,
+        model_args: ModelArgs,
         is_trainable: bool,
 ) -> None:
     gen_config = model.generation_config  # check and fix generation config
@@ -274,7 +273,7 @@ def _patch_model(
         logger.info("Using torch SDPA for faster training and inference.")
 
 def load_model(
-        model_args: ModelArguments,
+        model_args: ModelArgs,
         finetuning_args: FinetuningArguments,
         is_trainable: bool = False,
 ) -> PreTrainedModel:
@@ -294,13 +293,14 @@ def load_model(
         elif is_trainable:
             model = load_unsloth_pretrained_model(config, model_args)
 
-    if model_args.quantization_method == QuantizationMethod.GPTQ.value:
+    quantization_args = model_args.quantization_args
+    if quantization_args.quantization_method == QuantizationMethod.GPTQ.value:
         quantize_config = BaseQuantizeConfig(
-            bits=model_args.quantization_bit,
+            bits=quantization_args.quantization_bit,
             group_size=128,       # Group size (optional, can be None)
             desc_act=False        # Disable activation descriptor (optional)
         )
-        model = AutoGPTQForCausalLM.from_pretrained(model_args.model_name_or_path, bits=model_args.quantization_bit, group_size=128, quantize_config=quantize_config)
+        model = AutoGPTQForCausalLM.from_pretrained(model_args.model_name_or_path, bits=quantization_args.quantization_bit, group_size=128, quantize_config=quantize_config)
 
     if model is None and not lazy_load:
         init_kwargs["config"] = config
@@ -312,12 +312,12 @@ def load_model(
         _register_autoclass(config, model, tokenizer)
 
     model = init_adapter(config, model, model_args, finetuning_args, is_trainable)
-
+    torch_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
     if not is_trainable:
         model.requires_grad_(False)
         for param in model.parameters():
-            if param.data.dtype == torch.float32 and model_args.compute_dtype != torch.float32:
-                param.data = param.data.to(model_args.compute_dtype)
+            if param.data.dtype == torch.float32 and torch_dtype != torch.float32:
+                param.data = param.data.to(torch_dtype)
 
         model.eval()
     else:

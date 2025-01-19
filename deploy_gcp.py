@@ -11,6 +11,7 @@ import getpass
 
 current_user = getpass.getuser()
 
+
 def get_credentials(service_account_path=None):
     """Get credentials either from service account or application default."""
     try:
@@ -29,6 +30,7 @@ def get_credentials(service_account_path=None):
         print("2. Or set GOOGLE_APPLICATION_CREDENTIALS environment variable")
         raise
 
+
 def get_git_config():
     """Get git user.name and user.email from local machine."""
     try:
@@ -37,6 +39,7 @@ def get_git_config():
         return git_email, git_name
     except subprocess.CalledProcessError:
         return None, None
+
 
 def create_instance(project_id, zone, instance_name, machine_type, gpu_count,
                     boot_disk_size, data_disk_size, env_vars, credentials=None):
@@ -47,7 +50,6 @@ def create_instance(project_id, zone, instance_name, machine_type, gpu_count,
     machine_type_path = f"zones/{zone}/machineTypes/{machine_type}"
 
     # Configure the boot disk
-    disk_type = f"zones/{zone}/diskTypes/pd-ssd"
     boot_disk = compute_v1.AttachedDisk(
         auto_delete=True,
         boot=True,
@@ -215,8 +217,8 @@ echo "Startup script completed" >> /tmp/startup-log.txt
                             key="startup-script",
                             value=startup_script
                         )
-            ]
-        )
+                    ]
+                )
     )
 
     # Create the instance
@@ -248,6 +250,7 @@ def get_machine_type(gpu_memory, gpu_count):
 
     series = "a2-ultragpu" if gpu_memory == 80 else "a2-highgpu"
     return f"{series}-{gpu_count}g"
+
 
 def main():
     parser = argparse.ArgumentParser(description="Deploy a GPU VM instance on GCP.")
@@ -297,12 +300,8 @@ def main():
         # default=os.path.join(os.environ["HOME"], "key.json"),
         help="Path to service account JSON file"
     )
-
     args = parser.parse_args()
-
-
     machine_type = get_machine_type(args.gpu_memory, args.gpu_count)
-
     credentials = get_credentials(args.service_account_path)
 
     # Create environment variables dictionary
@@ -340,9 +339,10 @@ def main():
 
         print(f"\nView your instance in the Google Cloud Console:")
         print(
-            f"https://console.cloud.google.com/compute/instancesDetail/zones/{args.zone}/instances/{instance_name}?project={args.project_id}")
+            f"https://console.cloud.google.com/compute/instancesDetail/zones/{args.zone}/instances/{instance_name}?"
+            f"project={args.project_id}")
 
-        print(f"\nTo SSH into your instance, use:")
+        print("\nTo SSH into your instance, use:")
         print(f"gcloud compute ssh --project {args.project_id} --zone {args.zone} {instance_name}")
 
         # Interactive command loop
@@ -351,7 +351,7 @@ def main():
 
             instance_client = compute_v1.InstancesClient()
             if action == 't':
-                print(f"Terminating the instance...")
+                print("Terminating the instance...")
                 operation = instance_client.delete(project=args.project_id, zone=args.zone, instance=instance_name)
                 operation.result()
                 print("Instance deleted.")

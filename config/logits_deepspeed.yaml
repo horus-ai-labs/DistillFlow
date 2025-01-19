@@ -21,9 +21,11 @@ data:
   text_field: "text"
   train_datasets:
     - path: mlabonne/FineTome-100k
-      template: sharegpt
+      template:
+        name: sharegpt
     - path: horus-ai-labs/WebInstructSub-150K
-      template: sharegpt
+      template:
+        name: sharegpt
   test_size: 0.1
   streaming: false
 
@@ -33,6 +35,9 @@ tokenizer:
 distill:
   type: logits
   max_seq_length: 4096
+  temperature: 2.0
+  alpha: 0.0
+  resume_from_checkpoint: null
   sft_config:
     output_dir: './results'
     num_train_epochs: 3
@@ -47,10 +52,6 @@ distill:
     weight_decay: 0.05
     warmup_ratio: 0.1
     lr_scheduler_type: 'cosine'
-    resume_from_checkpoint: null
     fp16: False
     bf16: True
     deepspeed: './deepspeed/deepspeed_config.json'
-  distillation_args:
-    temperature: 2.0
-    alpha: 0.0

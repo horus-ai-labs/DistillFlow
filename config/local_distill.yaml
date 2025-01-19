@@ -1,11 +1,11 @@
 student_model:
-  model_name_or_path: Qwen/Qwen2-0.5B
+  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
   flash_attn: fa2
   use_unsloth: false
   output_attentions: true
 
 teacher_model:
-  model_name_or_path: Qwen/Qwen2-1.5B
+  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
   flash_attn: fa2
   use_unsloth: false
   output_attentions: true
@@ -15,7 +15,8 @@ data:
   text_field: "text"
   train_datasets:
     - path: mlabonne/FineTome-100k
-      template: sharegpt
+      template:
+        name: sharegpt
       num_samples: 100
   test_size: 0.2
   streaming: false
@@ -26,6 +27,9 @@ tokenizer:
 distill:
   type: logits
   max_seq_length: 1024
+  resume_from_checkpoint: null
+  temperature: 2.0
+  alpha: 0.5
   sft_config:
     output_dir: './results'
     num_train_epochs: 1
@@ -39,11 +43,7 @@ distill:
     weight_decay: 0.05
     warmup_ratio: 0.1
     lr_scheduler_type: 'cosine'
-    resume_from_checkpoint: null
     fp16: False
     bf16: True
     max_grad_norm: 1.0
     group_by_length: False
-  distillation_args:
-    temperature: 2.0
-    alpha: 0.5

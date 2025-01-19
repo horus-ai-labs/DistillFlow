@@ -1,8 +1,16 @@
+from typing import List, Dict
+
 import torch
 
 class AdaptationLayer(torch.nn.Module):
-    def __init__(self, student_dim, teacher_dim, num_student_layers, num_teacher_layers, strategy="interpolate",
-                 dtype=torch.bfloat16, selection_indices=None, weights=None):
+    def __init__(self, student_dim,
+                 teacher_dim,
+                 num_student_layers: int,
+                 num_teacher_layers: int,
+                 strategy="interpolate",
+                 dtype=torch.bfloat16,
+                 selection_indices: List[int]=None,
+                 weights:List[List[int]] =None):
         super().__init__()
         self.projections = torch.nn.ModuleList([
             torch.nn.Linear(student_dim, teacher_dim, dtype=dtype)
@@ -13,7 +21,7 @@ class AdaptationLayer(torch.nn.Module):
         self.dtype = dtype
 
     def map_teacher_to_student_layers(self, num_student_layers, num_teacher_layers, strategy="select",
-                                      selection_indices=None, weights=None) -> {}:
+                                      selection_indices:List[int]=None, weights:List[List[int]]=None) -> {}:
         """
         Maps teacher model layers to student model layers based on the specified strategy.
 
