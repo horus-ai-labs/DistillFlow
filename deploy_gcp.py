@@ -193,7 +193,7 @@ echo "Startup script completed" >> /tmp/startup-log.txt
                 machine_type=machine_type_path,
                 disks=[boot_disk, data_disk],
                 network_interfaces=[network_interface],
-                guest_accelerators=[gpu_config],
+                # guest_accelerators=[gpu_config],
                 scheduling=compute_v1.Scheduling(
                     on_host_maintenance="TERMINATE",
                     automatic_restart=True,
