@@ -6,21 +6,21 @@ from torch.nn import functional as F
 from trl import SFTTrainer
 
 from .AdaptationLayer import AdaptationLayer
-from .args import DistillConfig
+from .args import DistillArgs
 from ..common import get_current_device
 from ..datasets.loader import DatasetModule
 
 class LayersTrainer(SFTTrainer):
     def __init__(self,
                  accelerator: Accelerator,
-                 config: DistillConfig,
+                 distill_args: DistillArgs,
                  teacher_model: PreTrainedModel,
                  model: PreTrainedModel,
                  dataset_module: DatasetModule,
                  tokenizer: PreTrainedTokenizerBase
                  ):
         self.teacher_model = teacher_model
-        self.config = config
+        self.distill_args = distill_args
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
         self.device = get_current_device()
@@ -31,18 +31,18 @@ class LayersTrainer(SFTTrainer):
             model.config.num_hidden_layers,
             teacher_model.config.num_hidden_layers,
             dtype=torch.float16,
-            strategy=config.strategy,
-            selection_indices=config.selection_indices,
-            weights=config.weights
+            strategy=distill_args.strategy,
+            selection_indices=distill_args.selection_indices,
+            weights=distill_args.weights
         ).to(self.device)
 
-        if isinstance(train_dataset, IterableDataset) and config.sft_config.max_steps == -1:
+        if isinstance(train_dataset, IterableDataset) and distill_args.sft_config.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
 
-        super().__init__(model=model, args=config.sft_config, train_dataset=train_dataset,
+        super().__init__(model=model, args=distill_args.sft_config, train_dataset=train_dataset,
                          eval_dataset=eval_dataset, tokenizer=tokenizer,
-                         max_seq_length=config.max_seq_length,
-                         dataset_text_field=config.dataset_text_field)
+                         max_seq_length=distill_args.max_seq_length,
+                         dataset_text_field=distill_args.dataset_text_field)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         model_inputs = {
@@ -72,7 +72,7 @@ class LayersTrainer(SFTTrainer):
 
         total_loss_kd = 0
         for student_hidden, teacher_idx in self.adaptation_layer.layer_mapping.items():
-            if self.config.strategy == "weighted":
+            if self.distill_args.strategy == "weighted":
                 teacher_hidden = torch.zeros_like(teacher_hidden_states[0])
                 for idx, weight in teacher_idx.items():
                     teacher_hidden = weight * teacher_hidden_states[idx]
@@ -84,15 +84,15 @@ class LayersTrainer(SFTTrainer):
                     f"Shape mismatch: student {adapted_student_hidden_states[student_hidden].shape} vs teacher {teacher_hidden.shape}")
 
             student_probs = F.softmax(
-                adapted_student_hidden_states[student_hidden] / self.config.temperature, dim=-1)
-            teacher_probs = F.softmax(teacher_hidden / self.config.temperature, dim=-1)
+                adapted_student_hidden_states[student_hidden] / self.distill_args.temperature, dim=-1)
+            teacher_probs = F.softmax(teacher_hidden / self.distill_args.temperature, dim=-1)
 
             loss_kd = F.kl_div(
-                F.log_softmax(adapted_student_hidden_states[student_hidden] / self.config.temperature,
+                F.log_softmax(adapted_student_hidden_states[student_hidden] / self.distill_args.temperature,
                               dim=-1),
                 teacher_probs,
                 reduction='batchmean'
-            ) * (self.config.temperature ** 2)
+            ) * (self.distill_args.temperature ** 2)
 
             total_loss_kd += loss_kd
 
@@ -100,6 +100,6 @@ class LayersTrainer(SFTTrainer):
         hidden_dim = adapted_student_hidden_states[0].size(-1)
         scaled_loss_kd = avg_loss_kd / hidden_dim
 
-        total_loss = self.config.alpha * scaled_loss_kd + (
-                    1 - self.config.alpha) * original_loss
+        total_loss = self.distill_args.alpha * scaled_loss_kd + (
+                    1 - self.distill_args.alpha) * original_loss
         return total_loss

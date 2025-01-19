@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from distillflow.datasets.args import DataArgs
 from distillflow.model.args import ModelArgs, TokenizerArgs
-from distillflow.trainer.args import DistillConfig
+from distillflow.trainer.args import DistillArgs
 
 class Config(BaseModel):
     student_model: ModelArgs = Field(
@@ -20,7 +20,7 @@ class Config(BaseModel):
         default=None,
         description="Tokenizer specific arguments"
     )
-    distill: DistillConfig = Field(
+    distill: DistillArgs = Field(
         description="Distillation training parameters"
     )
 

@@ -5,28 +5,27 @@ from trl import SFTTrainer
 import torch
 import torch.nn.functional as F
 
-from .args import DistillConfig
+from .args import DistillArgs
 from ..common import get_current_device
 from ..datasets.loader import DatasetModule
 
 class LogitsTrainer(SFTTrainer):
     def __init__(self,
                  accelerator: Accelerator,
-                 config: DistillConfig,
+                 distill_args: DistillArgs,
                  teacher_model: PreTrainedModel,
                  model: PreTrainedModel,
                  dataset_module: DatasetModule,
                  tokenizer: PreTrainedTokenizerBase
                  ):
         self.accelerator = accelerator
-        self.config = config
+        self.distill_args = distill_args
         self.teacher_model = teacher_model
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
         self.device = get_current_device()
         self.teacher_model = self.teacher_model.to(self.device)
         model = model.to(self.device)
-        print(self.config.alpha)
 
         if self.accelerator is not None:
             self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
@@ -37,13 +36,13 @@ class LogitsTrainer(SFTTrainer):
                 ):  # quantized models are already set on the correct device
                     self.teacher_model = self._prepare_deepspeed(self.teacher_model)
 
-        if isinstance(train_dataset, IterableDataset) and config.sft_config.max_steps == -1:
+        if isinstance(train_dataset, IterableDataset) and distill_args.sft_config.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
 
-        super().__init__(model=model, args=config.sft_config, train_dataset=train_dataset,
+        super().__init__(model=model, args=distill_args.sft_config, train_dataset=train_dataset,
                          eval_dataset=eval_dataset, tokenizer=tokenizer,
-                         max_seq_length=config.max_seq_length,
-                         dataset_text_field=config.dataset_text_field)
+                         max_seq_length=distill_args.max_seq_length,
+                         dataset_text_field=distill_args.dataset_text_field)
 
     def pad_logits(self, student_logits, teacher_logits):
         student_size, teacher_size = student_logits.size(-1), teacher_logits.size(-1)
@@ -81,13 +80,13 @@ class LogitsTrainer(SFTTrainer):
         student_logits, teacher_logits = student_logits.to(inputs['labels'].device), teacher_logits.to(inputs['labels'].device)
         student_logits, teacher_logits = self.pad_logits(student_logits, teacher_logits)
 
-        student_logits_scaled = student_logits / self.config.temperature
-        teacher_logits_scaled = teacher_logits / self.config.temperature
+        student_logits_scaled = student_logits / self.distill_args.temperature
+        teacher_logits_scaled = teacher_logits / self.distill_args.temperature
 
         loss_kd = F.kl_div(
             F.log_softmax(student_logits_scaled, dim=-1),
             F.softmax(teacher_logits_scaled, dim=-1),
             reduction='batchmean'
-        ) * (self.config.temperature ** 2) / self.config.max_seq_length
+        ) * (self.distill_args.temperature ** 2) / self.distill_args.max_seq_length
 
-        return self.config.alpha * loss_kd + (1 - self.config.alpha) * original_loss
+        return self.distill_args.alpha * loss_kd + (1 - self.distill_args.alpha) * original_loss

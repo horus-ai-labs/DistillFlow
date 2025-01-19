@@ -39,6 +39,10 @@ deepspeed = "^0.15.4"
 google-cloud-compute = "^1.23.0"
 config = "^0.5.1"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+flake8 = "^6.0.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

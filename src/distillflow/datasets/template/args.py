@@ -49,7 +49,6 @@ class TemplateArgs(BaseModel):
                 f"Template '{self.name}' expects {expected_type.__name__} "
                 f"but got {type(self.args).__name__}"
             )
-        print("Called validate args")
         return self
 
     model_config = {

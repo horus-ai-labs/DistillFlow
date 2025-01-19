@@ -3,7 +3,7 @@ from typing import Literal, Optional, List, Dict
 from pydantic import BaseModel, Field
 from trl import SFTConfig
 
-class DistillConfig(BaseModel):
+class DistillArgs(BaseModel):
     sft_config: SFTConfig = Field(
         description="SFT Config, with hyperparameters required for training"
     )
