@@ -138,7 +138,7 @@ class ModelArgs(BaseModel):
     )
 
     deepspeed_config: str = Field(
-        default='./deepspeed/zero0_student.json',
+        default='./deepspeed/zero0.json',
         description="Path to deepspeed config file. Defaults to stage-0 no optimization (Training/Inference)."
     )
 

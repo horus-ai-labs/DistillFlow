@@ -73,26 +73,13 @@ def main():
     student_model = load_model(config.student_model, finetuning_args=FinetuningArguments(),
                                is_trainable=True)
 
-    print(student_model.forward)
-    print(student_model.config)
-
     student_model, train_dataloader, eval_dataloader = accelerator.prepare(student_model, train_dataloader, eval_dataloader)
-
-    print(student_model.forward)
-    print(student_model.config)
-
-    # for data in train_dataloader:
-    #     print(data)
-    #     exit()
 
     # Load teacher model
     accelerator.state.select_deepspeed_plugin("teacher")
     teacher_model = load_model(config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False)
-    print(teacher_model.forward)
 
     teacher_model = accelerator.prepare(teacher_model)
-    print(teacher_model.forward)
-
 
     # Initialize trainer
     trainer_class_mapping = {
@@ -112,10 +99,7 @@ def main():
         # trainer = accelerator.prepare(trainer)
 
     # Train model
-    print("Signature columns", trainer._signature_columns)
-    print("Args", trainer.args)
     trainer_stats = trainer.train(resume_from_checkpoint=config.distill.resume_from_checkpoint)
-    print(trainer_stats)
     output_dir = config.distill.sft_config.output_dir
     trainer.save_model(output_dir)
 

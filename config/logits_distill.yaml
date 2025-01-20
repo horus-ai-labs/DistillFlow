@@ -5,7 +5,7 @@ student_model:
   use_unsloth: false
   output_attentions: false
   enable_liger_kernel: true
-  deepspeed_config: './deepspeed/zero0_student.json'
+  deepspeed_config: './deepspeed/zero0.json'
 
 teacher_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
@@ -14,7 +14,7 @@ teacher_model:
   use_unsloth: false
   output_attentions: false
   enable_liger_kernel: true
-  deepspeed_config: './deepspeed/zero3_teacher.json'
+  deepspeed_config: './deepspeed/zero3.json'
 #  quantization_args:
 #    quantization_bit: 8
 #    quantization_method: gptq
