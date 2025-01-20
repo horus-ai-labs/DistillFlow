@@ -74,10 +74,12 @@ def main():
                                is_trainable=True)
 
     print(student_model.forward)
+    print(student_model.config)
 
     student_model, train_dataloader, eval_dataloader = accelerator.prepare(student_model, train_dataloader, eval_dataloader)
 
     print(student_model.forward)
+    print(student_model.config)
     exit()
     # Load teacher model
     accelerator.state.select_deepspeed_plugin("teacher")
