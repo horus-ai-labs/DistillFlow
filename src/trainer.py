@@ -15,6 +15,9 @@ from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.trainer.logits_distillation import LogitsTrainer
 
+from accelerate.utils import DeepSpeedPlugin
+
+
 def load_config(config_path):
     """Load YAML configuration."""
     with open(config_path, "r") as file:
@@ -42,12 +45,26 @@ def main():
     # Handle device
     device = get_current_device()
 
+    student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
+    teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
+    deepspeed_plugins = {"student": student_plugin, "teacher": teacher_plugin}
+
+    accelerator = None if device.type == "mps" else Accelerator(deepspeed_plugins=deepspeed_plugins)
+
+    active_plugin = get_active_deepspeed_plugin(accelerator.state)
+    assert active_plugin is deepspeed_plugins["student"]
+    assert active_plugin is accelerator.deepspeed_plugin
+
     # Load student model
     student_model = load_model(config.student_model, finetuning_args=FinetuningArguments(),
                                is_trainable=True)
 
+    student_model = accelerator.prepare(student_model)
+
     # Load teacher model
+    accelerator.state.select_deepspeed_plugin("teacher")
     teacher_model = load_model(config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False)
+    teacher_model = accelerator.prepare(teacher_model)
 
     # Load tokenizer and dataset
     tokenizer_template = config.tokenizer.template
@@ -59,7 +76,6 @@ def main():
 
     dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
 
-    accelerator = None if device.type == "mps" else Accelerator()
 
     # Initialize trainer
     trainer_class_mapping = {

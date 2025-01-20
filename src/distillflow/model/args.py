@@ -137,6 +137,11 @@ class ModelArgs(BaseModel):
         description="Arguments related to quantization"
     )
 
+    deepspeed_config: str = Field(
+        default='./deepspeed/zero0_student.json',
+        description="Path to deepspeed config file. Defaults to stage-0 no optimization (Training/Inference)."
+    )
+
     model_config = {
         "extra": "forbid"
     }
