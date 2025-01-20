@@ -1,6 +1,6 @@
 {
   "train_batch_size": "auto",
-  "train_micro_batch_size_per_gpu": "auto",
+  "train_micro_batch_size_per_gpu": 2,
   "gradient_accumulation_steps": "auto",
   "gradient_clipping": "auto",
   "zero_allow_untested_optimizer": true,
