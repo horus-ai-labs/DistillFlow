@@ -4,6 +4,7 @@ import subprocess
 import time
 from datetime import datetime
 
+from google.api_core import exceptions
 from google.cloud import compute_v1
 from google.oauth2 import service_account
 from google.auth import default
@@ -27,6 +28,7 @@ def get_credentials(service_account_path=None):
         print(f"Authentication error: {str(e)}")
         print("\nPlease ensure you have either:")
         print("1. Run 'gcloud auth application-default login'")
+        print("Download gcloud from https://cloud.google.com/sdk/docs/install")
         print("2. Or set GOOGLE_APPLICATION_CREDENTIALS environment variable")
         raise
 
@@ -42,7 +44,7 @@ def get_git_config():
 
 
 def create_instance(project_id, zone, instance_name, machine_type, gpu_count,
-                    boot_disk_size, data_disk_size, env_vars, credentials=None):
+                    boot_disk_size, data_disk_size, startup_script, credentials=None):
     """Create a VM instance with GPU on Google Cloud Platform."""
     instance_client = compute_v1.InstancesClient(credentials=credentials)
 
@@ -56,9 +58,7 @@ def create_instance(project_id, zone, instance_name, machine_type, gpu_count,
         initialize_params=compute_v1.AttachedDiskInitializeParams(
             disk_size_gb=boot_disk_size,
             disk_type=f"zones/{zone}/diskTypes/pd-standard",
-            source_image=f"projects/{project_id}/global/images/py12-cu124-20250111"
-            # source_image="projects/cos-cloud/global/images/family/cos-stable"
-            # source_image="projects/ml-images/global/images/c0-deeplearning-common-cu124-v20241118-debian-11-py310"
+            source_image=f"projects/{project_id}/global/images/py12-cu124-20250119"
         ),
     )
 
@@ -73,10 +73,12 @@ def create_instance(project_id, zone, instance_name, machine_type, gpu_count,
     )
 
     # Configure GPU
-    gpu_config = compute_v1.AcceleratorConfig(
-        accelerator_count=gpu_count,
-        accelerator_type=f"zones/{zone}/acceleratorTypes/nvidia-tesla-a100"
-    )
+    gpu_config = []
+    if "a2-highgpu" in machine_type:
+        gpu_config.append(compute_v1.AcceleratorConfig(
+            accelerator_count=gpu_count,
+            accelerator_type=f"zones/{zone}/acceleratorTypes/nvidia-tesla-a100"
+        ))
 
     # Configure networking
     network_interface = compute_v1.NetworkInterface(
@@ -118,74 +120,19 @@ def create_instance(project_id, zone, instance_name, machine_type, gpu_count,
     if aws_access_key is None or aws_secret_key is None:
         raise Exception("S3_ACCESS_KEY and S3_SECRET_KEY not set on your machine, please set it.")
 
-    startup_script = f"""#!/bin/bash
-exec 1>/tmp/startup-log.txt 2>&1  # Redirect all output to a log file
-set -x  # Print commands as they execute
+    script_args = {
+        '__USER_NAME__': current_user,
+        '__PUBLIC_KEY__': pub_key,
+        '__PRIVATE_KEY__': private_key,
+        '__AWS_ACCESS_KEY__': aws_access_key,
+        '__AWS_SECRET_KEY__': aws_secret_key,
+        '__AWS_REGION__': aws_region,
+        '__GIT_EMAIL__': git_email or '',
+        '__GIT_NAME__': git_name or ''
+    }
 
-# Create .aws directory
-mkdir -p /home/{current_user}/.aws
-
-# Create credentials file
-cat > /home/{current_user}/.aws/credentials << EOL
-[default]
-aws_access_key_id = {aws_access_key}
-aws_secret_access_key = {aws_secret_key}
-EOL
-
-# Create config file
-cat > /home/{current_user}/.aws/config << EOL
-[default]
-region = {aws_region}
-EOL
-
-# Set proper ownership
-chown -R {current_user}:{current_user} /home/{current_user}/.aws
-chmod 600 /home/{current_user}/.aws/credentials
-chmod 600 /home/{current_user}/.aws/config
-
-chmod 700 /home/{current_user}/.ssh
-
-# Create id_ed25519 private key
-cat > /home/{current_user}/.ssh/id_ed25519 << 'EOL'
-{private_key}
-EOL
-chmod 600 /home/{current_user}/.ssh/id_ed25519
-
-# Create id_ed25519.pub public key
-cat > /home/{current_user}/.ssh/id_ed25519.pub << 'EOL'
-{pub_key}
-EOL
-chmod 644 /home/{current_user}/.ssh/id_ed25519.pub
-
-# Set proper ownership
-chown -R {current_user}:{current_user} /home/{current_user}/.ssh
-
-# Set known hosts
-{f'su - {current_user} -c \'ssh-keyscan -t rsa github.com >> /home/{current_user}/.ssh/known_hosts\''}
-chmod 644 /home/{current_user}/.ssh/known_hosts
-
-# Set git config if available
-{f'su - {current_user} -c \'git config --global user.email "{git_email}"\'' if git_email else ''}
-{f'su - {current_user} -c \'git config --global user.name "{git_name}"\'' if git_name else ''}
-{f'su - {current_user} -c \'git config --global --add safe.directory /app\''}
-{f'su - {current_user} -c \'git config --global pull.rebase false\''}
-
-chown -R ${current_user}:${current_user} /app
-{f'su - {current_user} -c \'cd /app && git remote set-url origin git@github.com:horus-ai-labs/DistillFlow.git && git pull\''}
-
-cat >> /app/venv/bin/activate << EOL
-
-# Add env vars to .bashrc
-export S3_ACCESS_KEY={aws_access_key}
-export S3_SECRET_KEY={aws_secret_key}
-export AWS_REGION={aws_region}
-EOL
-chown ${current_user}:${current_user} /app/venv/bin/activate
-
-source /app/venv/bin/activate
-
-echo "Startup script completed" >> /tmp/startup-log.txt
-    """
+    for key, value in script_args.items():
+        startup_script = startup_script.replace(key, value)
 
     # Create the instance configuration
     instance = compute_v1.Instance(
@@ -193,7 +140,7 @@ echo "Startup script completed" >> /tmp/startup-log.txt
                 machine_type=machine_type_path,
                 disks=[boot_disk, data_disk],
                 network_interfaces=[network_interface],
-                guest_accelerators=[gpu_config],
+                guest_accelerators=gpu_config,
                 scheduling=compute_v1.Scheduling(
                     on_host_maintenance="TERMINATE",
                     automatic_restart=True,
@@ -211,7 +158,7 @@ echo "Startup script completed" >> /tmp/startup-log.txt
                         ),
                         compute_v1.Items(
                             key="ssh-keys",
-                            value=f"{current_user}:{pub_key}"  # Replace USER with your desired username
+                            value=f"{current_user}:{pub_key}"
                         ),
                         compute_v1.Items(
                             key="startup-script",
@@ -230,6 +177,45 @@ echo "Startup script completed" >> /tmp/startup-log.txt
     operation.result()  # Wait for the operation to complete
 
     return instance_name
+
+
+def get_supported_zones_for_machine_type(project_id: str, machine_type: str, region: str = None):
+    """
+    Find zones that support the specified machine type.
+
+    Args:
+        project_id: Your GCP project ID
+        machine_type: Machine type (e.g., 'a2-ultragpu-1g', 'a2-highgpu-8g')
+        region: Optional region to filter zones (e.g., 'us-central1')
+
+    Returns:
+        List of zones that support the specified machine type
+    """
+    zones_client = compute_v1.ZonesClient()
+    machine_types_client = compute_v1.MachineTypesClient()
+    supported_zones = []
+
+    # List all zones or filter by region
+    for zone in zones_client.list(project=project_id):
+        # Skip if region filter is set and zone doesn't match
+        if region and not zone.name.startswith(f"{region}-"):
+            continue
+
+        zone_name = zone.name
+        try:
+            # Check if the machine type is available in this zone
+            machine_type_request = compute_v1.GetMachineTypeRequest(
+                project=project_id,
+                zone=zone_name,
+                machine_type=machine_type
+            )
+            machine_types_client.get(request=machine_type_request)
+            supported_zones.append(zone_name)
+        except Exception:
+            # Machine type not available in this zone
+            continue
+
+    return supported_zones
 
 
 def get_machine_type(gpu_memory, gpu_count):
@@ -300,26 +286,26 @@ def main():
         # default=os.path.join(os.environ["HOME"], "key.json"),
         help="Path to service account JSON file"
     )
+    parser.add_argument(
+        "--script-path",
+        required=False,
+        default="startup_script.sh",
+        help="Path to the startup script to run on instance initialization"
+    )
     args = parser.parse_args()
     machine_type = get_machine_type(args.gpu_memory, args.gpu_count)
     credentials = get_credentials(args.service_account_path)
 
-    # Create environment variables dictionary
-    env_vars = {
-        "S3_ACCESS_KEY": os.getenv("S3_ACCESS_KEY"),
-        "S3_SECRET_KEY": os.getenv("S3_SECRET_KEY")
-    }
-    # Remove None values
-    env_vars = {k: v for k, v in env_vars.items() if v is not None}
-
     now = datetime.now()
     # Format the date as YYYYMMDD
-    formatted_date = now.strftime("%Y%m%d")
+    formatted_date = now.strftime("%Y%m%d%H%M")
 
     # Create a unique instance name using timestamp
-    instance_name = f"{machine_type}-{formatted_date}"
-
+    instance_name = f"{machine_type}-{formatted_date}-{current_user}"
     try:
+        with open(args.script_path, 'r') as f:
+            startup_script = f.read()
+
         print(f"Creating instance {instance_name}...")
         create_instance(
             project_id=args.project_id,
@@ -329,7 +315,7 @@ def main():
             gpu_count=args.gpu_count,
             boot_disk_size=args.boot_disk_size,
             data_disk_size=args.data_disk_size,
-            env_vars=env_vars,
+            startup_script=startup_script,
             credentials=credentials
         )
 
@@ -365,10 +351,30 @@ def main():
                 break
 
             else:
-                print("Invalid input. Please enter 'd' or 's'.")
+                print("Invalid input. Please enter 't' or 's'.")
 
+    except exceptions.PermissionDenied as e:
+        # Handle quota or permission issues
+        raise ValueError(f"Permission denied: {str(e)}")
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        if "Machine type" in str(e) and "does not exist in zone" in str(e):
+            # If machine type is not found, find supported zones
+            supported_zones = get_supported_zones_for_machine_type(
+                project_id=args.project_id,
+                machine_type=machine_type,
+            )
+
+            if not supported_zones:
+                raise ValueError(
+                    f"Machine type {machine_type} is not available in any zone"
+                )
+
+            raise ValueError(
+                f"Machine type {machine_type} is not available in zone {args.zone}. "
+                f"Try these zones instead: {', '.join(supported_zones)}"
+            )
+        else:
+            print(f"An error occurred: {str(e)}")
 
 
 if __name__ == "__main__":
