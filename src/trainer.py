@@ -3,7 +3,6 @@ import argparse
 
 from accelerate import Accelerator
 from pydantic import ValidationError
-from trl import SFTConfig
 
 import s3_utils
 from distillflow.config import Config

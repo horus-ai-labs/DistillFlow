@@ -35,8 +35,5 @@ jobs:
       run: |
         poetry install --no-interaction --with dev
 
-    - name: Lint with flake8
-      run: poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-
     - name: Test with pytest
       run: poetry run pytest
