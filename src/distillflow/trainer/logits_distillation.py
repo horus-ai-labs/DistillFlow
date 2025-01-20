@@ -27,14 +27,14 @@ class LogitsTrainer(SFTTrainer):
         self.teacher_model = self.teacher_model.to(self.device)
         model = model.to(self.device)
 
-        if self.accelerator is not None:
-            self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
-            if self.is_deepspeed_enabled:
-                if not (
-                        getattr(teacher_model.pretrained_model, "is_loaded_in_8bit", False)
-                        or getattr(teacher_model.pretrained_model, "is_loaded_in_4bit", False)
-                ):  # quantized models are already set on the correct device
-                    self.teacher_model = self._prepare_deepspeed(self.teacher_model)
+        # if self.accelerator is not None:
+        #     self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
+        #     if self.is_deepspeed_enabled:
+        #         if not (
+        #                 getattr(teacher_model.pretrained_model, "is_loaded_in_8bit", False)
+        #                 or getattr(teacher_model.pretrained_model, "is_loaded_in_4bit", False)
+        #         ):  # quantized models are already set on the correct device
+        #             self.teacher_model = self._prepare_deepspeed(self.teacher_model)
 
         if isinstance(train_dataset, IterableDataset) and distill_args.sft_config.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
