@@ -22,7 +22,7 @@ def format_map(item):
 
     # ShareGPT format
     conversation = {
-        "conversation": [
+        "conversations": [
             {"from": "human",
              "value": f"Question: {question}\n\nChoices:\nA) {choices[0]}\nB) {choices[1]}\nC) {choices[2]}\nD) {choices[3]}"},
             {"from": "gpt", "value": assistant_response},
@@ -39,7 +39,7 @@ def main(args):
         dataset = dataset.map(format_map, remove_columns=dataset.column_names)
         combined_dataset[split] = dataset
 
-    combined_dataset.push_to_hub(args.parsed_dataset_name, private=True)
+    combined_dataset.push_to_hub(args.parsed_dataset_name)
 
 if __name__ == '__main__':
     main(parse_arguments())

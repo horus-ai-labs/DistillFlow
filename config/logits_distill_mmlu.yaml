@@ -21,12 +21,12 @@ data:
   seed: 42
   text_field: "text"
   train_datasets:
-    - path: horus-ai-labs/mmlu-sharegpt
+    - path: horus-ai-labs/mmlu-sharegpt-all
       split: auxiliary_train
       template:
         name: sharegpt
   eval_datasets:
-    - path: horus-ai-labs/mmlu-sharegpt
+    - path: horus-ai-labs/mmlu-sharegpt-all
       split: validation
       template:
         name: sharegpt
@@ -58,3 +58,4 @@ distill:
   resume_from_checkpoint: null
   temperature: 2.0
   alpha: 0.5
+  deepspeed: './deepspeed/deepspeed_config.json'
