@@ -15,7 +15,7 @@ from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.trainer.logits_distillation import LogitsTrainer
 
-from accelerate.utils import DeepSpeedPlugin
+from accelerate.utils import DeepSpeedPlugin, get_active_deepspeed_plugin
 
 
 def load_config(config_path):
