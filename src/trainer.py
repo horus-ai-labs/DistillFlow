@@ -5,6 +5,7 @@ from accelerate import Accelerator
 from pydantic import ValidationError
 
 import s3_utils
+from torch.utils.data import DataLoader
 from distillflow.config import Config
 from distillflow.common import get_current_device
 from distillflow.config.validator import print_validation_error
@@ -55,6 +56,8 @@ def main():
 
     dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
 
+    train_dataloader = DataLoader(dataset_module["train_dataset"])
+    eval_dataloader = DataLoader(dataset_module["eval_dataset"])
 
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
     teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
@@ -72,7 +75,7 @@ def main():
 
     print(student_model.forward)
 
-    student_model, dataset_module = accelerator.prepare(student_model, dataset_module)
+    student_model, train_dataloader, eval_dataloader = accelerator.prepare(student_model, train_dataloader, eval_dataloader)
 
     print(student_model.forward)
     # Load teacher model
