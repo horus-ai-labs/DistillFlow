@@ -9,7 +9,7 @@ from distillflow.model.args import ModelArgs
 
 logger = get_logger(__name__)
 
-def get_init_kwargs(model_args: ModelArgs) -> Dict[str, Any]:
+def tokenizer_init_kwargs(model_args: ModelArgs) -> Dict[str, Any]:
     r"""
     Gets arguments to load config/tokenizer/model.
 
@@ -20,7 +20,6 @@ def get_init_kwargs(model_args: ModelArgs) -> Dict[str, Any]:
         "cache_dir": model_args.cache_dir,
         "revision": model_args.model_revision,
         "token": model_args.hf_hub_token,
-        "torch_dtype": torch.bfloat16,
     }
 
 def load_tokenizer(model_args: ModelArgs, template: str = None) -> PreTrainedTokenizer:
@@ -29,7 +28,7 @@ def load_tokenizer(model_args: ModelArgs, template: str = None) -> PreTrainedTok
             model_args.model_name_or_path,
             split_special_tokens=model_args.split_special_tokens,
             padding_side="right",
-            **get_init_kwargs(model_args),
+            **tokenizer_init_kwargs(model_args),
         )
     except Exception as e:
         raise OSError("Failed to load tokenizer.") from e

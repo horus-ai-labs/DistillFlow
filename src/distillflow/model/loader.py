@@ -19,7 +19,7 @@ from .finetuning_args import FinetuningArguments
 from .liger_kernel import apply_liger_kernel
 import torch.nn.functional as F
 from .quantization import configure_quantization, QuantizationMethod
-from .tokenizer import load_tokenizer, get_init_kwargs
+from .tokenizer import load_tokenizer
 from .unsloth import load_unsloth_pretrained_model
 from ..common.logger import get_logger
 from .args import ModelArgs
@@ -28,6 +28,20 @@ import torch
 from ..common import count_parameters, infer_optim_dtype, get_current_device
 
 logger = get_logger(__name__)
+
+def get_init_kwargs(model_args: ModelArgs) -> Dict[str, Any]:
+    r"""
+    Gets arguments to load config/tokenizer/model.
+
+    Note: including inplace operation of model_args.
+    """
+    return {
+        "trust_remote_code": True,
+        "cache_dir": model_args.cache_dir,
+        "revision": model_args.model_revision,
+        "token": model_args.hf_hub_token,
+        "torch_dtype": torch.bfloat16,
+    }
 
 def _register_autoclass(config: PretrainedConfig, model: "PreTrainedModel", tokenizer: "PreTrainedTokenizer"):
     if "AutoConfig" in getattr(config, "auto_map", {}):
