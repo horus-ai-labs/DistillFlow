@@ -76,6 +76,11 @@ def main():
 
     dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
 
+    train_dataset = dataset_module['dataset_module']
+
+    for data in train_dataset:
+        print(data)
+        exit()
 
     # Initialize trainer
     trainer_class_mapping = {
