@@ -47,6 +47,10 @@ class DistillArgs(BaseModel):
         examples=[[[100,10,40,50], [10,5,50,25]]] # 0th of student is computed with teacher layer weights 100 for 0th layer, 10 for 1st layer and so on
     )
 
+    remove_unused_columns: Optional[bool] = Field(
+        default=False,
+    )
+
     model_config = {
         "extra": "forbid"
     }
