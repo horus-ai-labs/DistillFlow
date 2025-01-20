@@ -27,6 +27,12 @@ data:
       split: validation
       template:
         name: sharegpt
+  eval_datasets:
+    - path: horus-ai-labs/mmlu-sharegpt-all
+      split: validation
+      template:
+        name: sharegpt
+
   streaming: false
 
 tokenizer:
