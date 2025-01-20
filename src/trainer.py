@@ -80,7 +80,11 @@ def main():
 
     print(student_model.forward)
     print(student_model.config)
-    exit()
+
+    for data in train_dataloader:
+        print(data)
+        exit()
+
     # Load teacher model
     accelerator.state.select_deepspeed_plugin("teacher")
     teacher_model = load_model(config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False)
