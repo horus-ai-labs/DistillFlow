@@ -70,7 +70,7 @@ def main():
     }
     trainer = trainer_class_mapping[config.distill.type](
         accelerator=accelerator,
-        config=config.distill,
+        distill_args=config.distill,
         teacher_model=teacher_model,
         model=student_model,
         dataset_module=dataset_module,
@@ -90,50 +90,6 @@ def main():
         s3_utils.upload_to_s3('distillflow-output', f'{output_dir}')
     except Exception as e:
         print("received exception while uploading results", e)
-
-def tokenize_function(tokenizer, max_length, text_field, examples):
-    return tokenizer(examples[text_field], truncation=True, max_length=max_length,
-                     padding="max_length")
-
-def attention_distill(config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args):
-    return AttentionTrainer(
-        model=student_model,
-        args=SFTConfig(**config),
-        dataset_module=dataset_module,
-        tokenizer=tokenizer,
-        max_seq_length=max_seq_length,
-        dataset_text_field=text_field,
-        # Distillation specific arguments
-        teacher_model=teacher_model,
-        distillation_args=distillation_args,
-    )
-
-def layers_distill(config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args):
-    return LayersTrainer(
-        model=student_model,
-        args=SFTConfig(**config),
-        dataset_module=dataset_module,
-        tokenizer=tokenizer,
-        max_seq_length=max_seq_length,
-        dataset_text_field=text_field,
-        # Distillation specific arguments
-        teacher_model=teacher_model,
-        distillation_args= distillation_args
-    )
-
-def logits_distill(accelerator, config, teacher_model, student_model, dataset_module, tokenizer, text_field, max_seq_length, distillation_args):
-    return LogitsTrainer(
-        accelerator=accelerator,
-        model=student_model,
-        args=SFTConfig(**config),
-        dataset_module=dataset_module,
-        tokenizer=None,
-        max_seq_length=max_seq_length,
-        dataset_text_field=text_field,
-        # Distillation specific arguments
-        teacher_model=teacher_model,
-        distillation_args= distillation_args
-    )
 
 if __name__ == "__main__":
     main()
