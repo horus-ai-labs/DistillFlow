@@ -9,7 +9,7 @@
         "stage3_prefetch_bucket_size": "auto",
         "stage3_param_persistence_threshold": "auto",
         "stage3_max_live_parameters": "auto",
-        "stage3_max_reuse_distance": "auto",
+        "stage3_max_reuse_distance": "auto"
     },
     "train_micro_batch_size_per_gpu": 1
 }
