@@ -59,12 +59,18 @@ def main():
     student_model = load_model(config.student_model, finetuning_args=FinetuningArguments(),
                                is_trainable=True)
 
+    print(student_model.forward)
+
     student_model = accelerator.prepare(student_model)
 
+    print(student_model.forward)
     # Load teacher model
     accelerator.state.select_deepspeed_plugin("teacher")
     teacher_model = load_model(config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False)
+    print(teacher_model.forward)
+
     teacher_model = accelerator.prepare(teacher_model)
+    print(teacher_model.forward)
 
     # Load tokenizer and dataset
     tokenizer_template = config.tokenizer.template
