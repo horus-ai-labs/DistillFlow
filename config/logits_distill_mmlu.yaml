@@ -55,7 +55,7 @@ distill:
     fp16: false
     bf16: true
     max_grad_norm: 1.0
-    deepspeed: './deepspeed/deepspeed_config.json'
+#    deepspeed: './deepspeed/deepspeed_config.json'
   resume_from_checkpoint: null
   temperature: 2.0
   alpha: 0.5
