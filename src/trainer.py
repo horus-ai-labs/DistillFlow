@@ -81,9 +81,9 @@ def main():
     print(student_model.forward)
     print(student_model.config)
 
-    for data in train_dataloader:
-        print(data)
-        exit()
+    # for data in train_dataloader:
+    #     print(data)
+    #     exit()
 
     # Load teacher model
     accelerator.state.select_deepspeed_plugin("teacher")
@@ -108,8 +108,8 @@ def main():
         dataset_module=dataset_module,
         tokenizer=tokenizer
     )
-    if device.type != "mps":
-        trainer = accelerator.prepare(trainer)
+    # if device.type != "mps":
+        # trainer = accelerator.prepare(trainer)
 
     # Train model
     trainer_stats = trainer.train(resume_from_checkpoint=config.distill.resume_from_checkpoint)
