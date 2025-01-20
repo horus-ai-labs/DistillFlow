@@ -45,6 +45,17 @@ def main():
     # Handle device
     device = get_current_device()
 
+    # Load tokenizer and dataset
+    tokenizer_template = config.tokenizer.template
+    tokenizer = load_tokenizer(config.student_model, template=tokenizer_template)
+
+    def tokenizer_function(examples):
+        return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
+                                 padding="max_length", return_tensors="pt")
+
+    dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
+
+
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
     teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
     deepspeed_plugins = {"student": student_plugin, "teacher": teacher_plugin}
@@ -61,7 +72,7 @@ def main():
 
     print(student_model.forward)
 
-    student_model = accelerator.prepare(student_model)
+    student_model, dataset_module = accelerator.prepare(student_model, dataset_module)
 
     print(student_model.forward)
     # Load teacher model
@@ -72,15 +83,6 @@ def main():
     teacher_model = accelerator.prepare(teacher_model)
     print(teacher_model.forward)
 
-    # Load tokenizer and dataset
-    tokenizer_template = config.tokenizer.template
-    tokenizer = load_tokenizer(config.student_model, template=tokenizer_template)
-
-    def tokenizer_function(examples):
-        return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
-                                 padding="max_length", return_tensors="pt")
-
-    dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
 
     # Initialize trainer
     trainer_class_mapping = {
