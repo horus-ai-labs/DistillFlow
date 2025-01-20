@@ -58,6 +58,7 @@ distill:
     fp16: false
     bf16: true
     max_grad_norm: 1.0
+    remove_unused_columns: false
   resume_from_checkpoint: null
   temperature: 2.0
   alpha: 0.5
