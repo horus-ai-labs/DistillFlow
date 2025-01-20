@@ -70,7 +70,7 @@ def main():
     }
     trainer = trainer_class_mapping[config.distill.type](
         accelerator=accelerator,
-        config=config.distill,
+        distill_args=config.distill,
         teacher_model=teacher_model,
         model=student_model,
         dataset_module=dataset_module,
