@@ -113,6 +113,7 @@ def main():
 
     # Train model
     print("Signature columns", trainer._signature_columns)
+    print("Args", trainer.args)
     trainer_stats = trainer.train(resume_from_checkpoint=config.distill.resume_from_checkpoint)
     print(trainer_stats)
     output_dir = config.distill.sft_config.output_dir
