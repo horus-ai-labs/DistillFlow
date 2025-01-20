@@ -60,7 +60,7 @@ def main():
 
     dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
 
-    accelerator = None if device.type == "mps" else Accelerator()
+    accelerator = Accelerator()
 
     # Initialize trainer
     trainer_class_mapping = {
