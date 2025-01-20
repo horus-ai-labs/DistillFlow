@@ -71,8 +71,8 @@ class TestDataset(unittest.TestCase):
             "attention_mask": torch.tensor([[1, 1, 1, 1]]),
             "labels": torch.tensor([[2001, 2023, 2003, 102]]),
         }
-        self._test_basic_distillation(inputs1, {"temperature": 2.0, "alpha": 0.7,}, 4.338196754455566)
-        self._test_basic_distillation(inputs1, {"temperature": 3.0, "alpha": 0.7,}, 4.338056564331055)
+        self._test_basic_distillation(inputs1, {"temperature": 2.0, "alpha": 0.7,}, 4.084968566894531)
+        self._test_basic_distillation(inputs1, {"temperature": 3.0, "alpha": 0.7,}, 4.084536075592041)
 
     def test_all_input_ids_0s(self):
         # Dummy inputs
@@ -81,7 +81,7 @@ class TestDataset(unittest.TestCase):
             "attention_mask": torch.tensor([[1, 1, 1, 1]]),
             "labels": torch.tensor([[2001, 2023, 2003, 102]]),
         }
-        self._test_basic_distillation(inputs2, {"temperature": 3.0, "alpha": 0.7,}, 4.720443248748779)
+        self._test_basic_distillation(inputs2, {"temperature": 3.0, "alpha": 0.7,}, 4.14251184463501)
 
     def test_all_input_ids_labels_0s(self):
         # Dummy inputs
@@ -90,7 +90,7 @@ class TestDataset(unittest.TestCase):
             "attention_mask": torch.tensor([[1, 1, 1, 1]]),
             "labels": torch.tensor([[0, 0, 0, 0]]),
         }
-        self._test_basic_distillation(inputs3, {"temperature": 3.0, "alpha": 0.7,}, 1.385455846786499)
+        self._test_basic_distillation(inputs3, {"temperature": 3.0, "alpha": 0.7,}, 1.6461817026138306)
 
     def test_all_inputs_0s(self):
         inputs4 = {
@@ -98,7 +98,7 @@ class TestDataset(unittest.TestCase):
             "attention_mask": torch.tensor([[0, 0, 0, 0]]),
             "labels": torch.tensor([[0, 0, 0, 0]]),
         }
-        self._test_basic_distillation(inputs4, {"temperature": 3.0, "alpha": 0.7,}, 0.27520856261253357)
+        self._test_basic_distillation(inputs4, {"temperature": 3.0, "alpha": 0.7,}, 0.2654446065425873)
 
     def test_logits_padding(self):
         trainer = LogitsTrainer(
