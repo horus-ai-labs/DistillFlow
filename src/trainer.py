@@ -16,7 +16,7 @@ from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.trainer.logits_distillation import LogitsTrainer
 
-from accelerate.utils import DeepSpeedPlugin, get_active_deepspeed_plugin
+from accelerate.utils import DeepSpeedPlugin, get_active_deepspeed_plugin, is_deepspeed_available
 
 
 def load_config(config_path):
@@ -59,27 +59,33 @@ def main():
     train_dataloader = DataLoader(dataset_module["train_dataset"])
     eval_dataloader = DataLoader(dataset_module["eval_dataset"])
 
+    accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
     teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
     deepspeed_plugins = {"student": student_plugin, "teacher": teacher_plugin}
 
-    accelerator = None if device.type == "mps" else Accelerator(deepspeed_plugins=deepspeed_plugins)
+    if device.type != "mps":
+        accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
 
-    active_plugin = get_active_deepspeed_plugin(accelerator.state)
-    assert active_plugin is deepspeed_plugins["student"]
-    assert active_plugin is accelerator.deepspeed_plugin
+    if accelerator is not None:
+        active_plugin = get_active_deepspeed_plugin(accelerator.state)
+        assert active_plugin is deepspeed_plugins["student"]
+        assert active_plugin is accelerator.deepspeed_plugin
 
     # Load student model
     student_model = load_model(config.student_model, finetuning_args=FinetuningArguments(),
                                is_trainable=True)
 
-    student_model, train_dataloader, eval_dataloader = accelerator.prepare(student_model, train_dataloader, eval_dataloader)
+    if accelerator is not None:
+        student_model, train_dataloader, eval_dataloader = accelerator.prepare(student_model, train_dataloader, eval_dataloader)
 
-    # Load teacher model
-    accelerator.state.select_deepspeed_plugin("teacher")
+        # Load teacher model
+        accelerator.state.select_deepspeed_plugin("teacher")
+
     teacher_model = load_model(config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False)
 
-    teacher_model = accelerator.prepare(teacher_model)
+    if accelerator is not None:
+        teacher_model = accelerator.prepare(teacher_model)
 
     # Initialize trainer
     trainer_class_mapping = {
@@ -108,6 +114,7 @@ def main():
         s3_utils.upload_to_s3('distillflow-output', f'{output_dir}')
     except Exception as e:
         print("received exception while uploading results", e)
+
 
 if __name__ == "__main__":
     main()
