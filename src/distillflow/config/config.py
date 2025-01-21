@@ -4,13 +4,14 @@ from pydantic import BaseModel, Field
 
 from distillflow.datasets.args import DataArgs
 from distillflow.model.args import ModelArgs, TokenizerArgs
+from distillflow.model.model_args import ModelArguments
 from distillflow.trainer.args import DistillArgs
 
 class Config(BaseModel):
-    student_model: ModelArgs = Field(
+    student_model: ModelArguments = Field(
         description="Details about the student model that we want to train"
     )
-    teacher_model: ModelArgs = Field(
+    teacher_model: ModelArguments = Field(
         description="Details about the teacher model"
     )
     data: DataArgs = Field(
@@ -25,5 +26,6 @@ class Config(BaseModel):
     )
 
     model_config = {
-        "extra": "forbid"
+        "extra": "forbid",
+        "arbitrary_types_allowed": True
     }

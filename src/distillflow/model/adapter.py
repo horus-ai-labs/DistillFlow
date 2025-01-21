@@ -1,3 +1,17 @@
+# Copyright 2024 the LlamaFactory team.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import re
 from typing import TYPE_CHECKING
 
@@ -6,37 +20,39 @@ from peft import LoraConfig, LoraModel, PeftModel, TaskType, get_peft_model
 from transformers.integrations import is_deepspeed_zero3_enabled
 from transformers.modeling_utils import is_fsdp_enabled
 
-from .args import ModelArgs
 from .finetuning_args import FinetuningArguments
-from ..common.logger import get_logger
-from .unsloth import get_unsloth_peft_model, load_unsloth_peft_model
-
-from transformers import PretrainedConfig, PreTrainedModel
-
-from ..common import find_all_linear_modules
+from .model_utils.misc import find_all_linear_modules, find_expanded_modules
+from .model_utils.quantization import QuantizationMethod
+from .model_utils.unsloth import get_unsloth_peft_model, load_unsloth_peft_model
+from .model_utils.visual import get_forbidden_modules, patch_target_modules
+from ..common import get_logger
 
 logger = get_logger(__name__)
 
-
 def _setup_full_tuning(
-        model: PreTrainedModel,
-        finetuning_args: FinetuningArguments,
-        is_trainable: bool,
-        cast_trainable_params_to_fp32: bool,
+    model: "PreTrainedModel",
+    finetuning_args: "FinetuningArguments",
+    is_trainable: bool,
+    cast_trainable_params_to_fp32: bool,
 ) -> None:
     if not is_trainable:
         return
 
     logger.info("Fine-tuning method: Full")
+    forbidden_modules = get_forbidden_modules(model.config, finetuning_args)
     for name, param in model.named_parameters():
-        if cast_trainable_params_to_fp32:
-            param.data = param.data.to(torch.float32)
+        if not any(forbidden_module in name for forbidden_module in forbidden_modules):
+            if cast_trainable_params_to_fp32:
+                param.data = param.data.to(torch.float32)
+        else:
+            param.requires_grad_(False)
+
 
 def _setup_freeze_tuning(
-        model: PreTrainedModel,
-        finetuning_args: "FinetuningArguments",
-        is_trainable: bool,
-        cast_trainable_params_to_fp32: bool,
+    model: "PreTrainedModel",
+    finetuning_args: "FinetuningArguments",
+    is_trainable: bool,
+    cast_trainable_params_to_fp32: bool,
 ) -> None:
     if not is_trainable:
         return
@@ -48,9 +64,9 @@ def _setup_freeze_tuning(
         config = model.config
 
     num_layers = (
-            getattr(config, "num_hidden_layers", None)
-            or getattr(config, "num_layers", None)
-            or getattr(config, "n_layer", None)
+        getattr(config, "num_hidden_layers", None)
+        or getattr(config, "num_layers", None)
+        or getattr(config, "n_layer", None)
     )
     if not num_layers:
         raise ValueError("Current model does not support freeze tuning.")
@@ -100,27 +116,27 @@ def _setup_freeze_tuning(
 
             trainable_layers.append(module_name)
 
-    # forbidden_modules = get_forbidden_modules(model.config, finetuning_args)
+    forbidden_modules = get_forbidden_modules(model.config, finetuning_args)
     for name, param in model.named_parameters():
-        # if any(trainable_layer in name for trainable_layer in trainable_layers) and not any(
-        #         forbidden_module in name for forbidden_module in forbidden_modules
-        # ):
-        if cast_trainable_params_to_fp32:
-            param.data = param.data.to(torch.float32)
-        # else:
-        #     param.requires_grad_(False)
+        if any(trainable_layer in name for trainable_layer in trainable_layers) and not any(
+            forbidden_module in name for forbidden_module in forbidden_modules
+        ):
+            if cast_trainable_params_to_fp32:
+                param.data = param.data.to(torch.float32)
+        else:
+            param.requires_grad_(False)
 
     logger.info("Set trainable layers: {}".format(",".join(trainable_layers)))
 
 
 def _setup_lora_tuning(
-        config: PretrainedConfig,
-        model: PreTrainedModel,
-        model_args: ModelArgs,
-        finetuning_args: FinetuningArguments,
-        is_trainable: bool,
-        cast_trainable_params_to_fp32: bool,
-) -> PeftModel:
+    config: "PretrainedConfig",
+    model: "PreTrainedModel",
+    model_args: "ModelArguments",
+    finetuning_args: "FinetuningArguments",
+    is_trainable: bool,
+    cast_trainable_params_to_fp32: bool,
+) -> "PeftModel":
     if is_trainable:
         logger.info("Fine-tuning method: {}".format("DoRA" if finetuning_args.use_dora else "LoRA"))
 
@@ -155,11 +171,11 @@ def _setup_lora_tuning(
         }
 
         for adapter in adapter_to_merge:
-            model: LoraModel = PeftModel.from_pretrained(model, adapter, **init_kwargs)
+            model: "LoraModel" = PeftModel.from_pretrained(model, adapter, **init_kwargs)
             model = model.merge_and_unload()
 
         if len(adapter_to_merge) > 0:
-            logger.info("Merged {} adapter(s).".format(len(adapter_to_merge)))
+            logger.info(f"Merged {len(adapter_to_merge)} adapter(s).")
 
         if adapter_to_resume is not None:  # resume lora training
             if model_args.use_unsloth:
@@ -174,6 +190,18 @@ def _setup_lora_tuning(
             target_modules = find_all_linear_modules(model, finetuning_args.freeze_vision_tower)
         else:
             target_modules = finetuning_args.lora_target
+
+        if finetuning_args.use_llama_pro:
+            target_modules = find_expanded_modules(model, target_modules, finetuning_args.freeze_trainable_layers)
+
+        target_modules = patch_target_modules(model.config, finetuning_args, target_modules)
+
+        if (
+            finetuning_args.use_dora
+            and getattr(model, "quantization_method", None) is not None
+            and getattr(model, "quantization_method", None) != QuantizationMethod.BITS_AND_BYTES
+        ):
+            raise ValueError("DoRA is not compatible with PTQ-quantized models.")
 
         if model_args.resize_vocab and finetuning_args.additional_target is None:
             input_embeddings = model.get_input_embeddings()
@@ -204,8 +232,8 @@ def _setup_lora_tuning(
                     logger.info("Using PiSSA initialization.")
                     peft_kwargs["init_lora_weights"] = "pissa"
                 else:
-                    logger.info("Using PiSSA initialization with FSVD steps {}.".format(finetuning_args.pissa_iter))
-                    peft_kwargs["init_lora_weights"] = "pissa_niter_{}".format(finetuning_args.pissa_iter)
+                    logger.info(f"Using PiSSA initialization with FSVD steps {finetuning_args.pissa_iter}.")
+                    peft_kwargs["init_lora_weights"] = f"pissa_niter_{finetuning_args.pissa_iter}"
 
             lora_config = LoraConfig(
                 task_type=TaskType.CAUSAL_LM,
@@ -222,11 +250,11 @@ def _setup_lora_tuning(
 
 
 def init_adapter(
-        config: "PretrainedConfig",
-        model: "PreTrainedModel",
-        model_args: "ModelArgs",
-        finetuning_args: "FinetuningArguments",
-        is_trainable: bool,
+    config: "PretrainedConfig",
+    model: "PreTrainedModel",
+    model_args: "ModelArguments",
+    finetuning_args: FinetuningArguments,
+    is_trainable: bool,
 ) -> "PreTrainedModel":
     r"""
     Initializes the adapters.
@@ -246,12 +274,11 @@ def init_adapter(
     # 1. is_trainable and not pure_bf16 and not badam and quantization_bit is not None (qlora)
     # 2. is_trainable and not pure_bf16 and not badam and not zero3 and not fsdp (zero3 or fsdp already in fp32)
     cast_trainable_params_to_fp32 = False
-    quantization_args = model_args.quantization_args
     if not is_trainable:
         pass
     elif finetuning_args.pure_bf16:
         logger.info("Pure bf16 / BAdam detected, remaining trainable params in half precision.")
-    elif quantization_args is not None and quantization_args.quantization_bit is None and (is_deepspeed_zero3_enabled() or is_fsdp_enabled()):
+    elif model_args.quantization_bit is None and (is_deepspeed_zero3_enabled() or is_fsdp_enabled()):
         logger.info("ZeRO3 / FSDP detected, remaining trainable params in float32.")
     else:
         logger.info("Upcasting trainable params to float32.")
@@ -266,6 +293,6 @@ def init_adapter(
             config, model, model_args, finetuning_args, is_trainable, cast_trainable_params_to_fp32
         )
     else:
-        raise NotImplementedError("Unknown finetuning type: {}.".format(finetuning_args.finetuning_type))
+        raise NotImplementedError(f"Unknown finetuning type: {finetuning_args.finetuning_type}.")
 
     return model

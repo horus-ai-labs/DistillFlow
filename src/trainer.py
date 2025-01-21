@@ -42,16 +42,17 @@ def main():
     # Handle device
     device = get_current_device()
 
-    # Load student model
-    student_model = load_model(config.student_model, finetuning_args=FinetuningArguments(),
-                               is_trainable=True)
-
-    # Load teacher model
-    teacher_model = load_model(config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False)
-
     # Load tokenizer and dataset
     tokenizer_template = config.tokenizer.template
-    tokenizer = load_tokenizer(config.student_model, template=tokenizer_template)
+    tokenizer = load_tokenizer(config.student_model, template=tokenizer_template)["tokenizer"]
+    # Load student model
+    student_model = load_model(tokenizer, config.student_model, finetuning_args=FinetuningArguments(),
+                               is_trainable=True, add_valuehead=False)
+
+    teacher_tokenizer = load_tokenizer(config.teacher_model, template=tokenizer_template)["tokenizer"]
+
+    # Load teacher model
+    teacher_model = load_model(teacher_tokenizer, config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False, add_valuehead=False)
 
     def tokenizer_function(examples):
         return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,

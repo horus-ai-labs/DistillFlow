@@ -2,13 +2,11 @@ student_model:
   model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
   flash_attn: fa2
   use_unsloth: false
-  output_attentions: true
 
 teacher_model:
   model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
   flash_attn: fa2
   use_unsloth: false
-  output_attentions: true
 
 data:
   seed: 42
