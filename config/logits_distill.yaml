@@ -14,7 +14,7 @@ teacher_model:
   use_unsloth: false
   output_attentions: false
   enable_liger_kernel: true
-  deepspeed_config: './deepspeed/zero3.json'
+  deepspeed_config: './deepspeed/zero0.json'
 #  quantization_args:
 #    quantization_bit: 8
 #    quantization_method: gptq
