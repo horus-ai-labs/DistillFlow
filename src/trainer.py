@@ -35,6 +35,17 @@ def parse_args():
     )
     return parser.parse_args()
 
+def prepare_model(model_config, accelerator, accelerator_state, finetuning_args, is_trainable):
+    """Prepare model for training."""
+
+    model = load_model(model_config, finetuning_args=finetuning_args,
+                               is_trainable=is_trainable)
+    if accelerator is not None:
+        accelerator.state.select_deepspeed_plugin(accelerator_state)
+        model = accelerator.prepare(model)
+
+    return model
+
 def main():
     args = parse_args()
     try:
@@ -56,9 +67,6 @@ def main():
 
     dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
 
-    train_dataloader = DataLoader(dataset_module["train_dataset"])
-    eval_dataloader = DataLoader(dataset_module["eval_dataset"])
-
     accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
     teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
@@ -67,25 +75,13 @@ def main():
     if device.type != "mps":
         accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
 
-    if accelerator is not None:
-        active_plugin = get_active_deepspeed_plugin(accelerator.state)
-        assert active_plugin is deepspeed_plugins["student"]
-        assert active_plugin is accelerator.deepspeed_plugin
 
     # Load student model
-    student_model = load_model(config.student_model, finetuning_args=FinetuningArguments(),
-                               is_trainable=True)
+    student_model = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student',
+                                  finetuning_args=FinetuningArguments(), is_trainable=True)
 
-    if accelerator is not None:
-        student_model, train_dataloader, eval_dataloader = accelerator.prepare(student_model, train_dataloader, eval_dataloader)
-
-        # Load teacher model
-        accelerator.state.select_deepspeed_plugin("teacher")
-
-    teacher_model = load_model(config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False)
-
-    if accelerator is not None:
-        teacher_model = accelerator.prepare(teacher_model)
+    teacher_model = prepare_model(config.teacher_model, accelerator=accelerator, accelerator_state='teacher',
+                                  finetuning_args=FinetuningArguments(), is_trainable=False)
 
     # Initialize trainer
     trainer_class_mapping = {
@@ -106,6 +102,7 @@ def main():
 
     # Train model
     trainer_stats = trainer.train(resume_from_checkpoint=config.distill.resume_from_checkpoint)
+    print(trainer_stats)
     output_dir = config.distill.sft_config.output_dir
     trainer.save_model(output_dir)
 

@@ -24,9 +24,12 @@ class LogitsTrainer(SFTTrainer):
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
         self.device = get_current_device()
-        self.teacher_model = self.teacher_model.to(self.device)
-        model = model.to(self.device)
+        if self.device.type == 'mps':
+            # Explicitly place the models on device since accelerate prepare does not work on MPS.
+            self.teacher_model = self.teacher_model.to(self.device)
+            model = model.to(self.device)
 
+        #TODO: remove excess code.
         # if self.accelerator is not None:
         #     self.is_deepspeed_enabled = getattr(self.accelerator.state, "deepspeed_plugin", None) is not None
         #     if self.is_deepspeed_enabled:

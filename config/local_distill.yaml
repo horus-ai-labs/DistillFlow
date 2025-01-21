@@ -47,3 +47,4 @@ distill:
     bf16: True
     max_grad_norm: 1.0
     group_by_length: False
+    remove_unused_columns: false
