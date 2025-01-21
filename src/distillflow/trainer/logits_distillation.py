@@ -63,6 +63,7 @@ class LogitsTrainer(SFTTrainer):
             return model(**inputs)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        inputs = {k: v.to(torch.bfloat16) for k, v in inputs.items()}
         student_model = model.module if hasattr(model, 'module') else model
         teacher_model = self.teacher_model.module if hasattr(self.teacher_model, 'module') else self.teacher_model
 

@@ -3,7 +3,6 @@ student_model:
   model_name_or_path: Qwen/Qwen2-1.5B-Instruct
   flash_attn: fa2
   use_unsloth: false
-  output_attentions: false
   enable_liger_kernel: true
 
 teacher_model:
@@ -11,7 +10,6 @@ teacher_model:
   model_name_or_path: Qwen/Qwen2-0.5B
   flash_attn: fa2
   use_unsloth: false
-  output_attentions: false
   enable_liger_kernel: true
 #  quantization_args:
 #    quantization_bit: 8
@@ -24,9 +22,7 @@ data:
     - path: mlabonne/FineTome-100k
       template:
         name: sharegpt
-    - path: horus-ai-labs/WebInstructSub-150K
-      template:
-        name: sharegpt
+      num_samples: 1000
   test_size: 0.1
   streaming: false
 

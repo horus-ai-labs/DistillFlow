@@ -49,11 +49,13 @@ def main():
     student_model = load_model(tokenizer, config.student_model, finetuning_args=FinetuningArguments(),
                                is_trainable=True, add_valuehead=False)
 
+    print(f"student model: {student_model}")
     teacher_tokenizer = load_tokenizer(config.teacher_model, template=tokenizer_template)["tokenizer"]
 
     # Load teacher model
     teacher_model = load_model(teacher_tokenizer, config.teacher_model, finetuning_args=FinetuningArguments(), is_trainable=False, add_valuehead=False)
 
+    print(f"teacher model: {teacher_model}")
     def tokenizer_function(examples):
         return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
                                  padding="max_length", return_tensors="pt")
