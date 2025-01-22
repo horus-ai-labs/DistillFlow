@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from distillflow.datasets.args import DataArgs
-from distillflow.model.args import ModelArgs, TokenizerArgs
+from distillflow.model.args import ModelArgs
 from distillflow.trainer.args import DistillArgs
 
 class Config(BaseModel):
@@ -15,10 +15,6 @@ class Config(BaseModel):
     )
     data: DataArgs = Field(
         description="The datasets that we want to choose to run the training"
-    )
-    tokenizer: Optional[TokenizerArgs] = Field(
-        default=None,
-        description="Tokenizer specific arguments"
     )
     distill: DistillArgs = Field(
         description="Distillation training parameters"

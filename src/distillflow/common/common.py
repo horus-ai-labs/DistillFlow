@@ -53,7 +53,7 @@ def count_parameters(model: "torch.nn.Module") -> Tuple[int, int]:
     return trainable_params, all_param
 
 
-def find_all_linear_modules(model: PreTrainedModel, freeze_vision_tower: bool) -> List[str]:
+def find_all_linear_modules(model: PreTrainedModel) -> List[str]:
     r"""
     Finds all available modules to apply lora or galore.
     """
@@ -67,12 +67,6 @@ def find_all_linear_modules(model: PreTrainedModel, freeze_vision_tower: bool) -
         forbidden_modules.add("multi_modal_projector")
     elif model_type == "qwen2_vl":
         forbidden_modules.add("merger")
-
-    if freeze_vision_tower:
-        if model_type == "qwen2_vl":
-            forbidden_modules.add("visual")
-        else:
-            forbidden_modules.add("vision_tower")
 
     module_names = set()
     for name, module in model.named_modules():

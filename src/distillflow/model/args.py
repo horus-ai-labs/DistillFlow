@@ -2,13 +2,31 @@ from typing import Optional, Literal
 
 from pydantic import Field, BaseModel
 
-class TokenizerArgs(BaseModel):
-    template: Optional[str] = Field(
+from distillflow.model.finetuning_args import FinetuningArgs
+
+class ExportArguments(BaseModel):
+    r"""
+    Arguments pertaining to the model export.
+    """
+    export_quantization_bit: Optional[int] = Field(
         default=None,
-        description="Template to use "
+        description="The number of bits to quantize the exported model."
+    )
+    export_quantization_dataset: Optional[str] = Field(
+        default=None,
+        description="Path to the dataset or dataset name to use in quantizing the exported model."
+    )
+    export_quantization_nsamples: int = Field(
+        default=128,
+        description="The number of samples used for quantization."
+    )
+    export_quantization_maxlen: int = Field(
+        default=1024,
+        description="The maximum length of the model inputs used for quantization."
     )
 
-class QuantizationArgs(BaseModel):
+    
+class QuantizationArgs(ExportArguments, BaseModel):
     r"""
     Arguments pertaining to the quantization method.
     """
@@ -37,6 +55,7 @@ class QuantizationArgs(BaseModel):
     model_config = {
         "extra": "forbid"
     }
+
 
 class ModelArgs(BaseModel):
     r"""
@@ -136,10 +155,17 @@ class ModelArgs(BaseModel):
         default=QuantizationArgs(),
         description="Arguments related to quantization"
     )
-
+    finetuning_args: Optional[FinetuningArgs] = Field(
+        default=FinetuningArgs(),
+        description="Arguments related to finetuning (LoRA, Freeze etc.)"
+    )
     deepspeed_config: str = Field(
         default='./deepspeed/zero0.json',
         description="Path to deepspeed config file. Defaults to stage-0 no optimization (Training/Inference)."
+    )
+    chat_template: Optional[str] = Field(
+        default=None,
+        description="Chat template to use when loading the model's tokenizer"
     )
 
     model_config = {

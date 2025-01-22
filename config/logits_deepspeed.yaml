@@ -1,18 +1,19 @@
 student_model:
-#  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-  model_name_or_path: Qwen/Qwen2-1.5B
+  model_name_or_path: Qwen/Qwen2-0.5B-Instruct
   flash_attn: fa2
   use_unsloth: false
   output_attentions: False
   enable_liger_kernel: true
+  deepspeed_config: './deepspeed/zero0.json'
+  chat_template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
 teacher_model:
-#  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
   model_name_or_path: Qwen/Qwen2-1.5B-Instruct
   flash_attn: fa2
   use_unsloth: false
   output_attentions: False
   enable_liger_kernel: true
+  deepspeed_config: './deepspeed/zero0.json'
 #  quantization_bit: 8
 #  quantization_method: gptq
 
@@ -28,9 +29,6 @@ data:
         name: sharegpt
   test_size: 0.1
   streaming: false
-
-tokenizer:
-  template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
 distill:
   type: logits
@@ -54,4 +52,4 @@ distill:
     lr_scheduler_type: 'cosine'
     fp16: False
     bf16: True
-    deepspeed: './deepspeed/deepspeed_config.json'
+    remove_unused_columns: false
