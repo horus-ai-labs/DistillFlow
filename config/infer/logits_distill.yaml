@@ -1,10 +1,10 @@
 student_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-  model_name_or_path: /Users/aayushgupta/dev/model_checkpoints/distill/qwen/parent_7B_student_1.5B/mmlu/
+  model_name_or_path: '/Users/aayushgupta/dev/model_checkpoints/distill/qwen/parent_7B_student_1.5B/mmlu'
   flash_attn: sdpa
   use_unsloth: false
   output_attentions: false
-  enable_liger_kernel: true
+  enable_liger_kernel: false
   deepspeed_config: './deepspeed/zero0.json'
 
 teacher_model:
