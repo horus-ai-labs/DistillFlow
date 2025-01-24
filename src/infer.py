@@ -77,7 +77,7 @@ def main():
         question = None
         for prompt in examples["_prompt"]:
             if prompt["role"] == "user":
-                question = prompt["content"]
+                question = prompt
 
         response = None
         for prompt in examples["_response"]:
@@ -93,45 +93,46 @@ def main():
 
     dataset = dataset["train_dataset"].map(fetch, batched=False, remove_columns=dataset["train_dataset"].column_names)
 
-    # for idx, data in enumerate(dataset["question"]):
-    #     print(f"data {data}")
+    for idx, data in enumerate(dataset):
+        print(data["question"])
+        tokenizer.eos_token = "<|im_end|>"
+        text = tokenizer.apply_chat_template(str(data["question"]), tokenize=False, add_generation_prompt=True)
+        model_inputs = tokenizer([text], return_tensors="pt").to(device)
 
-    for idx, data in enumerate(dataset["response"]):
-        print(f"response {data}")
+        # Load Single Model (by default student is loaded and teacher is ignored).
+        accelerator = None
+        student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
+        deepspeed_plugins = {"student": student_plugin}
+
+        if device.type != "mps":
+            accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
+
+        student_model = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student',
+                                      finetuning_args=FinetuningArguments(), is_trainable=False)
+
+        if device.type == "mps":
+            student_model = student_model.to(device)
+            model_inputs = model_inputs.to(device)
+
+        generated_ids = student_model.generate(model_inputs.input_ids, max_new_tokens=512, do_sample=True)
+
+        generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in
+                         zip(model_inputs.input_ids, generated_ids)]
+
+        response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+
+        print(response)
+
+    # for idx, data in enumerate(dataset["response"]):
+    #     print(f"response {data}")
 
     # load data and tokenize somehow.
     # Add load+_dataset = "horus-ai-labs/mmlu-sharegpt-all" and run eval.
     # prompt = "Question: For T: Z x Z -> Z where T(1, 0) = 3 and T(0, 1) = -5, find T(-3,2).\n\nChoices:\nA) -19\nB) -10\nC) 19\nD) 10"
     #
     # messages = [{"role": "user", "content": prompt}]
-    # tokenizer.eos_token = "<|im_end|>"
-    # text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    # model_inputs = tokenizer([text], return_tensors="pt").to(device)
-    #
-    # # Load Single Model (by default student is loaded and teacher is ignored).
-    # accelerator = None
-    # student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
-    # deepspeed_plugins = {"student": student_plugin}
-    #
-    #
-    # if device.type != "mps":
-    #     accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
-    #
-    # student_model = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student',
-    #                               finetuning_args=FinetuningArguments(), is_trainable=False)
-    #
-    # if device.type == "mps":
-    #     student_model = student_model.to(device)
-    #     model_inputs = model_inputs.to(device)
-    #
-    # generated_ids = student_model.generate(model_inputs.input_ids, max_new_tokens=512, do_sample=True)
-    #
-    # generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in
-    #                  zip(model_inputs.input_ids, generated_ids)]
-    #
-    # response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-    #
-    # print(response)
+
+
 
 if __name__ == "__main__":
     main()
