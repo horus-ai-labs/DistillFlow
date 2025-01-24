@@ -2,12 +2,11 @@ import math
 import os
 from contextlib import nullcontext
 from types import MethodType
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 
-import transformers
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
-from transformers import PreTrainedTokenizer, ProcessorMixin, AutoConfig, AutoTokenizer, AutoProcessor, PreTrainedModel, \
-    PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizer, AutoConfig, PreTrainedModel, \
+    PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available
 from transformers.integrations import is_deepspeed_zero3_enabled, is_deepspeed_available
 from transformers.modeling_utils import is_fsdp_enabled
 from transformers.utils import is_torch_sdpa_available, is_flash_attn_2_available
@@ -15,10 +14,8 @@ from transformers.utils.versions import require_version
 
 from .adapter import init_adapter
 from .checkpoint import prepare_model_for_training
-from .finetuning_args import FinetuningArguments
 from .liger_kernel import apply_liger_kernel
-import torch.nn.functional as F
-from .quantization import configure_quantization, QuantizationMethod
+from .quantization import _configure_quantization, QuantizationMethod
 from .tokenizer import load_tokenizer
 from .unsloth import load_unsloth_pretrained_model
 from ..common.logger import get_logger
@@ -39,8 +36,7 @@ def get_init_kwargs(model_args: ModelArgs) -> Dict[str, Any]:
         "trust_remote_code": True,
         "cache_dir": model_args.cache_dir,
         "revision": model_args.model_revision,
-        "token": model_args.hf_hub_token,
-        "torch_dtype": torch.bfloat16,
+        "token": model_args.hf_hub_token
     }
 
 def _register_autoclass(config: PretrainedConfig, model: "PreTrainedModel", tokenizer: "PreTrainedTokenizer"):
@@ -93,96 +89,25 @@ def _configure_attn_implementation(
     else:
         setattr(config, "_attn_implementation", requested_attn_implementation)
 
-def get_seqlens_in_batch(attention_mask: "torch.Tensor") -> "torch.Tensor":
-    r"""
-    Gets the sequnce lengths in the current batch.
-
-    e.g.
-    ```python
-    # input
-    [
-        [1, 1, 2, 2, 2, 0],
-        [1, 2, 2, 3, 3, 3],
-    ]
-    # output
-    [2, 3, 1, 2, 3]
-    ```
-    """
-    bsz = attention_mask.size(0)
-    dtype, device = attention_mask.dtype, attention_mask.device
-    max_num = torch.max(attention_mask).item()
-    counts: "torch.Tensor" = torch.zeros((bsz, max_num), dtype=dtype, device=device)
-    for i in range(max_num):
-        counts[:, i] = torch.sum(attention_mask == (i + 1), dim=-1)
-
-    counts = counts.flatten()
-    seqlens = counts[counts.nonzero().squeeze(dim=-1)]
-    return seqlens
-
-
-def get_unpad_data(attention_mask: "torch.Tensor") -> Tuple["torch.Tensor", "torch.Tensor", int]:
-    r"""
-    Prepares the indices and seqlens for flash attn varlen function.
-
-    Returns:
-        indices: indices of non-masked tokens from the flattened sequence.
-        cu_seqlens: the cumulative sequence lengths in the current batch, always starts from 0.
-        max_seqlen_in_batch: the largest seqlen in the current batch.
-
-    e.g.
-    ```python
-    # input
-    [
-        [1, 1, 2, 2, 2, 0],
-        [1, 2, 2, 3, 3, 3],
-    ]
-    # output
-    [0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11]
-    [0, 2, 5, 6, 8, 11]
-    3
-    ```
-    """
-    seqlens_in_batch = get_seqlens_in_batch(attention_mask)
-    indices = torch.nonzero(attention_mask.flatten(), as_tuple=False).flatten()
-    max_seqlen_in_batch = seqlens_in_batch.max().item()
-    cu_seqlens = F.pad(torch.cumsum(seqlens_in_batch, dim=0, dtype=torch.int32), (1, 0))
-    return indices, cu_seqlens, max_seqlen_in_batch
-
-def configure_packing(model_args: "ModelArgs", is_trainable: bool) -> None:
-    if not is_trainable:
-        return
-
-    require_version("transformers>=4.43.0,<=4.46.1", "To fix: pip install transformers>=4.43.0,<=4.46.1")
-    transformers.modeling_flash_attention_utils._get_unpad_data = get_unpad_data
-    logger.info("Using block diagonal attention for sequence packing without cross-attention.")
-
-
 def _patch_config(
         config: PretrainedConfig,
         tokenizer: PreTrainedTokenizer,
         model_args: ModelArgs,
         init_kwargs: Dict[str, Any],
         is_trainable: bool,
+        torch_dtype: torch.dtype
 ) -> None:
-    # if model_args.compute_dtype is None:  # priority: bf16 > fp16 > fp32
-    #     if model_args.infer_dtype != "auto" and not is_trainable:
-    #         model_args.compute_dtype = getattr(torch, model_args.infer_dtype)
-    #     else:
-    #         model_args.compute_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
-
     if is_torch_npu_available():
         use_jit_compile = os.environ.get("JIT_COMPILE", "0").lower() in ["true", "1"]
         torch.npu.set_compile_mode(jit_compile=use_jit_compile)
 
     _configure_attn_implementation(config, model_args, is_trainable)
-    configure_quantization(config, tokenizer, model_args.quantization_args, init_kwargs)
-    configure_packing(model_args, is_trainable)
+    _configure_quantization(config, tokenizer, model_args.quantization_args, init_kwargs, torch_dtype)
 
     if model_args.use_cache and not is_trainable:
         setattr(config, "use_cache", True)
         logger.info("Using KV cache for faster generation.")
 
-    torch_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
     if getattr(config, "model_type", None) == "qwen":
         setattr(config, "use_flash_attn", model_args.flash_attn == "fa2")
         for dtype_name, dtype in [("fp16", torch.float16), ("bf16", torch.bfloat16), ("fp32", torch.float32)]:
@@ -288,13 +213,17 @@ def _patch_model(
 
 def load_model(
         model_args: ModelArgs,
-        finetuning_args: FinetuningArguments,
         is_trainable: bool = False,
-) -> PreTrainedModel:
+) -> (PreTrainedModel, PreTrainedTokenizer):
     tokenizer = load_tokenizer(model_args)
     init_kwargs = get_init_kwargs(model_args)
     config = AutoConfig.from_pretrained(model_args.model_name_or_path, **init_kwargs)
-    _patch_config(config, tokenizer, model_args, init_kwargs, is_trainable)
+    if model_args.infer_dtype != "auto" and not is_trainable:
+        torch_dtype = getattr(torch, model_args.infer_dtype)
+    else:
+        torch_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
+
+    _patch_config(config, tokenizer, model_args, init_kwargs, is_trainable, torch_dtype)
 
     # More details here: https://github.com/linkedin/Liger-Kernel
     apply_liger_kernel(config, model_args, is_trainable, require_logits=True)
@@ -325,8 +254,7 @@ def load_model(
         _patch_model(model, tokenizer, model_args, is_trainable)
         _register_autoclass(config, model, tokenizer)
 
-    model = init_adapter(config, model, model_args, finetuning_args, is_trainable)
-    torch_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
+    model = init_adapter(config, model, model_args, is_trainable)
     if not is_trainable:
         model.requires_grad_(False)
         for param in model.parameters():
@@ -355,4 +283,4 @@ def load_model(
                 )
             )
 
-    return model
+    return model, tokenizer

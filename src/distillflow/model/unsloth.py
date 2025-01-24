@@ -1,5 +1,7 @@
 from typing import Any, Dict, Optional
 
+import torch
+
 from ..common import get_current_device, infer_optim_dtype
 from ..common.logger import get_logger
 
@@ -13,10 +15,15 @@ logger = get_logger(__name__)
 def _get_unsloth_kwargs(
         config: PretrainedConfig, model_name_or_path: str, model_args: ModelArgs
 ) -> Dict[str, Any]:
+    if model_args.infer_dtype != "auto":
+        torch_dtype = getattr(torch, model_args.infer_dtype)
+    else:
+        torch_dtype = infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None))
+
     return {
         "model_name": model_name_or_path,
         "max_seq_length": 4096,
-        "dtype": infer_optim_dtype(model_dtype=getattr(config, "torch_dtype", None)),
+        "dtype": torch_dtype,
         "load_in_4bit": model_args.quantization_args.quantization_bit == 4,
         "token": model_args.hf_hub_token,
         "device_map": {"": get_current_device()},

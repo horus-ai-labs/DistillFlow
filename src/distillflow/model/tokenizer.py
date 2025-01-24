@@ -1,7 +1,6 @@
 from types import MethodType
 from typing import Dict, Any
 
-import torch
 from transformers import AutoTokenizer, PreTrainedTokenizerBase, PreTrainedTokenizer
 
 from distillflow.common import get_logger
@@ -22,7 +21,7 @@ def tokenizer_init_kwargs(model_args: ModelArgs) -> Dict[str, Any]:
         "token": model_args.hf_hub_token,
     }
 
-def load_tokenizer(model_args: ModelArgs, template: str = None) -> PreTrainedTokenizer:
+def load_tokenizer(model_args: ModelArgs) -> PreTrainedTokenizer:
     try:
         tokenizer = AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
@@ -48,7 +47,7 @@ def load_tokenizer(model_args: ModelArgs, template: str = None) -> PreTrainedTok
     if "PreTrainedTokenizerBase" not in str(tokenizer._pad.__func__):
         tokenizer._pad = MethodType(PreTrainedTokenizerBase._pad, tokenizer)
 
-    if template is not None:
-        tokenizer.chat_template = template
+    if model_args.chat_template is not None:
+        tokenizer.chat_template = model_args.chat_template
 
     return tokenizer

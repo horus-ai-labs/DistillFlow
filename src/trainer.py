@@ -3,26 +3,26 @@ import argparse
 
 from accelerate import Accelerator
 from pydantic import ValidationError
+from transformers import PreTrainedModel, PreTrainedTokenizer
 
 import s3_utils
-from torch.utils.data import DataLoader
 from distillflow.config import Config
 from distillflow.common import get_current_device
 from distillflow.config.validator import print_validation_error
 from distillflow.datasets.loader import get_dataset
-from distillflow.model.finetuning_args import FinetuningArguments
-from distillflow.model.loader import load_model, load_tokenizer
+from distillflow.model.loader import load_model
 from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.trainer.logits_distillation import LogitsTrainer
 
-from accelerate.utils import DeepSpeedPlugin, get_active_deepspeed_plugin, is_deepspeed_available
+from accelerate.utils import DeepSpeedPlugin
 
 
 def load_config(config_path):
     """Load YAML configuration."""
     with open(config_path, "r") as file:
         return yaml.safe_load(file)
+
 
 def parse_args():
     """Parse command-line arguments."""
@@ -35,16 +35,16 @@ def parse_args():
     )
     return parser.parse_args()
 
-def prepare_model(model_config, accelerator, accelerator_state, finetuning_args, is_trainable):
+
+def prepare_model(model_args, accelerator, accelerator_state, is_trainable) -> (PreTrainedModel, PreTrainedTokenizer):
     """Prepare model for training."""
 
-    model = load_model(model_config, finetuning_args=finetuning_args,
-                               is_trainable=is_trainable)
+    model, tokenizer = load_model(model_args, is_trainable=is_trainable)
     if accelerator is not None:
         accelerator.state.select_deepspeed_plugin(accelerator_state)
         model = accelerator.prepare(model)
 
-    return model
+    return model, tokenizer
 
 def main():
     args = parse_args()
@@ -57,16 +57,6 @@ def main():
     # Handle device
     device = get_current_device()
 
-    # Load tokenizer and dataset
-    tokenizer_template = config.tokenizer.template
-    tokenizer = load_tokenizer(config.student_model, template=tokenizer_template)
-
-    def tokenizer_function(examples):
-        return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
-                                 padding="max_length", return_tensors="pt")
-
-    dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
-
     accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
     teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
@@ -77,11 +67,16 @@ def main():
 
 
     # Load student model
-    student_model = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student',
-                                  finetuning_args=FinetuningArguments(), is_trainable=True)
+    student_model, student_tokenizer = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student', is_trainable=True)
 
-    teacher_model = prepare_model(config.teacher_model, accelerator=accelerator, accelerator_state='teacher',
-                                  finetuning_args=FinetuningArguments(), is_trainable=False)
+    teacher_model, teacher_tokenizer = prepare_model(config.teacher_model, accelerator=accelerator, accelerator_state='teacher', is_trainable=False)
+
+    # Load dataset
+    def tokenizer_function(examples):
+        return student_tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
+                                 padding="max_length", return_tensors="pt")
+
+    dataset_module = get_dataset(config.data, student_tokenizer, tokenizer_function=tokenizer_function)
 
     # Initialize trainer
     trainer_class_mapping = {
@@ -95,10 +90,8 @@ def main():
         teacher_model=teacher_model,
         model=student_model,
         dataset_module=dataset_module,
-        tokenizer=tokenizer
+        tokenizer=student_tokenizer
     )
-    # if device.type != "mps":
-        # trainer = accelerator.prepare(trainer)
 
     # Train model
     trainer_stats = trainer.train(resume_from_checkpoint=config.distill.resume_from_checkpoint)

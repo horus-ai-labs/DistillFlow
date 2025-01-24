@@ -6,7 +6,7 @@ from datasets import Dataset
 from trl import SFTConfig
 
 from distillflow.model.args import ModelArgs
-from distillflow.model.finetuning_args import FinetuningArguments
+from distillflow.model.finetuning_args import FinetuningArgs
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.trainer.args import DistillArgs
 from distillflow.trainer.logits_distillation import LogitsTrainer
@@ -26,11 +26,10 @@ class TestDataset(unittest.TestCase):
         model_config = ModelArgs(
             model_name_or_path="gpt2"
         )
-        self.teacher = load_model(model_config, FinetuningArguments(), False)
-        self.student = load_model(model_config, FinetuningArguments(), True)
+        self.teacher, self.teacher_tokenizer = load_model(model_config, False)
+        self.student, self.student_tokenizer = load_model(model_config, True)
 
         # Tokenizer
-        self.tokenizer = load_tokenizer(model_config)
         self.sft_config = SFTConfig(
             output_dir="./results",
             num_train_epochs= 1,
@@ -49,7 +48,7 @@ class TestDataset(unittest.TestCase):
             accelerator=None,
             model=self.student,
             dataset_module={"train_dataset": self.dataset, "eval_dataset": self.dataset},
-            tokenizer=self.tokenizer,
+            tokenizer=self.student_tokenizer,
             distill_args=args,
             teacher_model=self.teacher
         )
@@ -109,7 +108,7 @@ class TestDataset(unittest.TestCase):
                 max_seq_length=512,
                 sft_config=self.sft_config
             ),
-            tokenizer=self.tokenizer,
+            tokenizer=self.student_tokenizer,
             teacher_model=self.teacher,
         )
 
@@ -134,7 +133,7 @@ class TestDataset(unittest.TestCase):
                 temperature=2.0,
                 alpha=1.7
             ),
-            tokenizer=self.tokenizer,
+            tokenizer=self.student_tokenizer,
             teacher_model=self.teacher,
         )
 
