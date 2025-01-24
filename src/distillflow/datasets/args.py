@@ -52,7 +52,7 @@ class DataArgs(BaseModel):
         description="Auth token to log in with Hugging Face Hub."
     )
     text_field: Optional[str] = Field(
-        default="text",
+        default=None,
         description="Name of the field key to convert the dataset."
     )
     streaming: bool = Field(

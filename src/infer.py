@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 import yaml
 import argparse
 
@@ -9,7 +11,9 @@ from torch.utils.data import DataLoader
 from distillflow.config import Config
 from distillflow.common import get_current_device
 from distillflow.config.validator import print_validation_error
+from distillflow.datasets.args import DataArgs, DatasetArgs
 from distillflow.datasets.loader import get_dataset
+from distillflow.datasets.template.args import TemplateArgs
 from distillflow.model.finetuning_args import FinetuningArguments
 from distillflow.model.loader import load_model, load_tokenizer
 from distillflow.trainer.attention_distillation import AttentionTrainer
@@ -67,39 +71,67 @@ def main():
     #     return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
     #                              padding="max_length", return_tensors="pt")
 
+    dataset = get_dataset(data_args=config.data, tokenizer=tokenizer)
+
+    def fetch(examples: Dict[str, Any]) -> Dict[str, Any]:
+        question = None
+        for prompt in examples["_prompt"]:
+            if prompt["role"] == "user":
+                question = prompt["content"]
+
+        response = None
+        for prompt in examples["_response"]:
+            if prompt["role"] == "assistant":
+                response = prompt["content"]
+
+        if question is None or response is None:
+            return {}
+
+        return {"question": question, "response": response}
+
+    # print(dataset["train_dataset"]["_response"])
+
+    dataset = dataset["train_dataset"].map(fetch, batched=False, remove_columns=dataset["train_dataset"].column_names)
+
+    # for idx, data in enumerate(dataset["question"]):
+    #     print(f"data {data}")
+
+    for idx, data in enumerate(dataset["response"]):
+        print(f"response {data}")
+
     # load data and tokenize somehow.
     # Add load+_dataset = "horus-ai-labs/mmlu-sharegpt-all" and run eval.
-    prompt = "Question: For T: Z x Z -> Z where T(1, 0) = 3 and T(0, 1) = -5, find T(-3,2).\n\nChoices:\nA) -19\nB) -10\nC) 19\nD) 10"
-
-    messages = [{"role": "user", "content": prompt}]
-    tokenizer.eos_token = "<|im_end|>"
-    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    model_inputs = tokenizer([text], return_tensors="pt").to(device)
-
-    # Load Single Model (by default student is loaded and teacher is ignored).
-    accelerator = None
-    student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
-    deepspeed_plugins = {"student": student_plugin}
-
-
-    if device.type != "mps":
-        accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
-
-    student_model = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student',
-                                  finetuning_args=FinetuningArguments(), is_trainable=False)
-
-    if device.type == "mps":
-        student_model = student_model.to(device)
-        model_inputs = model_inputs.to(device)
-
-    generated_ids = student_model.generate(model_inputs.input_ids, max_new_tokens=512, do_sample=True)
-
-    generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in
-                     zip(model_inputs.input_ids, generated_ids)]
-
-    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-
-    print(response)
+    # prompt = "Question: For T: Z x Z -> Z where T(1, 0) = 3 and T(0, 1) = -5, find T(-3,2).\n\nChoices:\nA) -19\nB) -10\nC) 19\nD) 10"
+    #
+    # messages = [{"role": "user", "content": prompt}]
+    # tokenizer.eos_token = "<|im_end|>"
+    # text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    # model_inputs = tokenizer([text], return_tensors="pt").to(device)
+    #
+    # # Load Single Model (by default student is loaded and teacher is ignored).
+    # accelerator = None
+    # student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
+    # deepspeed_plugins = {"student": student_plugin}
+    #
+    #
+    # if device.type != "mps":
+    #     accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
+    #
+    # student_model = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student',
+    #                               finetuning_args=FinetuningArguments(), is_trainable=False)
+    #
+    # if device.type == "mps":
+    #     student_model = student_model.to(device)
+    #     model_inputs = model_inputs.to(device)
+    #
+    # generated_ids = student_model.generate(model_inputs.input_ids, max_new_tokens=512, do_sample=True)
+    #
+    # generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in
+    #                  zip(model_inputs.input_ids, generated_ids)]
+    #
+    # response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    #
+    # print(response)
 
 if __name__ == "__main__":
     main()

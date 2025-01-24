@@ -1,6 +1,6 @@
 student_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-  model_name_or_path: '/Users/aayushgupta/dev/model_checkpoints/distill/qwen/parent_7B_student_1.5B/mmlu'
+  model_name_or_path: '/Users/karankhurana/Downloads/qwen_mmlu'
   flash_attn: sdpa
   use_unsloth: false
   output_attentions: false
@@ -21,18 +21,12 @@ teacher_model:
 
 data:
   seed: 42
-  text_field: "text"
   train_datasets:
     - path: horus-ai-labs/mmlu-sharegpt-all
-      split: auxiliary_train
+      split: test
       template:
         name: sharegpt
-  eval_datasets:
-    - path: horus-ai-labs/mmlu-sharegpt-all
-      split: validation
-      template:
-        name: sharegpt
-
+  test_size: 2
   streaming: false
 
 tokenizer:
