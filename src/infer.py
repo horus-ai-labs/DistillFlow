@@ -1,10 +1,13 @@
 from typing import Dict, Any
-
+import json
 import yaml
 import argparse
+import re
 
+from tqdm import tqdm
 from accelerate import Accelerator
 from pydantic import ValidationError
+from datasets import load_dataset
 
 import s3_utils
 from torch.utils.data import DataLoader
@@ -38,6 +41,12 @@ def parse_args():
     )
     return parser.parse_args()
 
+def append_to_jsonl(data, filename: str) -> None:
+    """Append a json payload to the end of a jsonl file."""
+    json_string = json.dumps(data)
+    with open(filename, "a") as f:
+        f.write(json_string + "\n")
+
 def prepare_model(model_config, accelerator, accelerator_state, finetuning_args, is_trainable):
     """Prepare model for training."""
 
@@ -49,6 +58,22 @@ def prepare_model(model_config, accelerator, accelerator_state, finetuning_args,
 
     return model
 
+def extract_number(text):
+    pattern = r"(?i)the correct answer is\s+(\d+):"
+
+    match = re.search(pattern, text)
+    if match:
+        extracted_number = match.group(1)
+        # print(f"Extracted number: {extracted_number}")
+        return int(extracted_number)
+    else:
+        return None
+
+def acc(pred, gt):
+    if pred == gt:
+        return 1.0
+    else:
+        return 0.0
 
 def main():
     args = parse_args()
@@ -62,76 +87,118 @@ def main():
 
     device = get_current_device()
 
+    # Load Single Model (by default student is loaded and teacher is ignored).
+    accelerator = None
+    student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
+    deepspeed_plugins = {"student": student_plugin}
+
+    if device.type != "mps":
+        accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
+
+    student_model = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student',
+                                  finetuning_args=FinetuningArguments(), is_trainable=False)
+
     # Load tokenizer and dataset
     tokenizer_template = config.tokenizer.template
-    # Auto - regressive inference. padding on the left.
+    # Auto-regressive inference. padding on the left.
     tokenizer = load_tokenizer(config.student_model, template=tokenizer_template, padding_side="left")
+    tokenizer.eos_token = "<|im_end|>"
 
-    # def tokenizer_function(examples):
-    #     return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
-    #                              padding="max_length", return_tensors="pt")
+    def tokenizer_function(examples):
+        return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
+                         padding="max_length", return_tensors="pt")
 
-    dataset = get_dataset(data_args=config.data, tokenizer=tokenizer)
+    # dataset = get_dataset(data_args=config.data, tokenizer=tokenizer, tokenizer_function=None)
+    #
+    # # def fetch(examples: Dict[str, Any]) -> Dict[str, Any]:
+    # #     question = None
+    # #     for prompt in examples["_prompt"]:
+    # #         if prompt["role"] == "user":
+    # #             question = prompt
+    # #
+    # #     response = None
+    # #     for prompt in examples["_response"]:
+    # #         if prompt["role"] == "assistant":
+    # #             response = prompt["content"]
+    # #
+    # #     if question is None or response is None:
+    # #         return {}
+    # #
+    # #     return {"question": question, "response": response}
+    #
+    # # dataset = dataset["train_dataset"].map(fetch, batched=False, remove_columns=dataset["train_dataset"].column_names)
+    # print(dataset['train_dataset'][0])
 
-    def fetch(examples: Dict[str, Any]) -> Dict[str, Any]:
-        question = None
-        for prompt in examples["_prompt"]:
-            if prompt["role"] == "user":
-                question = prompt
+    dataset =  load_dataset(
+            path=config.data.train_datasets[0].path,
+            split=config.data.train_datasets[0].split,
+            cache_dir=config.data.cache_dir,
+            token=config.data.hf_hub_token,
+            streaming=config.data.streaming, # and (dataset_attr.load_from != "file")),
+            trust_remote_code=True
+        )
 
-        response = None
-        for prompt in examples["_response"]:
-            if prompt["role"] == "assistant":
-                response = prompt["content"]
+    def sharegpt_format(example):
+        conversations = example['conversations']
+        message = []
+        answer = []
 
-        if question is None or response is None:
-            return {}
+        if isinstance(conversations, list):
+            for conversation in conversations:
+                if isinstance(conversation, dict):
+                    if conversation.get('from') == 'human':
+                        message.append({"role": "user", "content": conversation.get('value', '')})
+                    elif conversation.get('from') == 'gpt':
+                        answer.append({"role": "assistant", "content": conversation.get('value', '')})
+                    elif conversation.get('from') == 'system':
+                        message.insert(0, {"role": "system", "content": conversation.get('value', '')})
 
-        return {"question": question, "response": response}
+        if not any(msg.get('role') == 'system' for msg in message):
+            message.insert(0, {"role": "system", "content": "You are a helpful assistant."})
 
-    # print(dataset["train_dataset"]["_response"])
+        text = tokenizer.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
 
-    dataset = dataset["train_dataset"].map(fetch, batched=False, remove_columns=dataset["train_dataset"].column_names)
+        # assert len(message) == len(answer)
 
-    for idx, data in enumerate(dataset):
-        print(data["question"])
-        tokenizer.eos_token = "<|im_end|>"
-        text = tokenizer.apply_chat_template(str(data["question"]), tokenize=False, add_generation_prompt=True)
-        model_inputs = tokenizer([text], return_tensors="pt").to(device)
+        return {"text": text}, answer
 
-        # Load Single Model (by default student is loaded and teacher is ignored).
-        accelerator = None
-        student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
-        deepspeed_plugins = {"student": student_plugin}
+    # Preprocess and tokenize the dataset
+    print("Preprocessing and tokenizing dataset...")
+    original_columns = dataset.column_names
+    # dataset = dataset.map(sharegpt_format, remove_columns=original_columns)
 
-        if device.type != "mps":
-            accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
+    for data in tqdm(dataset):
+        print(data)
+        print("asdnasdnalksndlansdlkasndlkansdlkansdlakndlakndalkdnalksndaslkdnaslkdn")
+        model_inputs, answer = sharegpt_format(data)
+        print(model_inputs)
+        model_inputs = tokenizer(model_inputs[config.data.text_field], truncation=True,
+                  padding=True, return_tensors="pt")
 
-        student_model = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student',
-                                      finetuning_args=FinetuningArguments(), is_trainable=False)
+        print(model_inputs['attention_mask'].shape)
+        # print(processed[0], processed[1])
+        # model_inputs = model_inputs.to(device)
 
         if device.type == "mps":
             student_model = student_model.to(device)
             model_inputs = model_inputs.to(device)
 
-        generated_ids = student_model.generate(model_inputs.input_ids, max_new_tokens=512, do_sample=True)
+        generated_ids = student_model.generate(input_ids = model_inputs.input_ids,
+                                               attention_mask = model_inputs.attention_mask,
+                                               max_new_tokens=25, do_sample=False)
 
         generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in
                          zip(model_inputs.input_ids, generated_ids)]
 
         response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-        print(response)
+        print("Response", extract_number(response))
+        print("Answer", extract_number(answer[0]['content']))
 
-    # for idx, data in enumerate(dataset["response"]):
-    #     print(f"response {data}")
-
-    # load data and tokenize somehow.
-    # Add load+_dataset = "horus-ai-labs/mmlu-sharegpt-all" and run eval.
-    # prompt = "Question: For T: Z x Z -> Z where T(1, 0) = 3 and T(0, 1) = -5, find T(-3,2).\n\nChoices:\nA) -19\nB) -10\nC) 19\nD) 10"
-    #
-    # messages = [{"role": "user", "content": prompt}]
-
+        append_to_jsonl({'resonse': response, 'answer': answer[0]['content']},
+                        './results/infer_finetuned.jsonl')
+        metric = acc(extract_number(response), extract_number(answer[0]['content']))
+        print(metric)
 
 
 if __name__ == "__main__":

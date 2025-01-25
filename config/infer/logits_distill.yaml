@@ -1,6 +1,6 @@
 student_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-  model_name_or_path: '/Users/karankhurana/Downloads/qwen_mmlu'
+  model_name_or_path: '/Users/aayushgupta/dev/model_checkpoints/distill/qwen/parent_7B_student_1.5B/mmlu/'
   flash_attn: sdpa
   use_unsloth: false
   output_attentions: false
@@ -21,9 +21,11 @@ teacher_model:
 
 data:
   seed: 42
+  text_field: "text"
   train_datasets:
     - path: horus-ai-labs/mmlu-sharegpt-all
       split: test
+      load_from_cache_file: false
       template:
         name: sharegpt
   test_size: 2
@@ -33,6 +35,7 @@ tokenizer:
   template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
 distill:
+#  output_file: './results/infer_finetuned.jsonl'
   type: logits
   max_seq_length: 2048
   sft_config:

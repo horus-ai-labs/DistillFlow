@@ -67,6 +67,9 @@ def main():
 
     dataset_module = get_dataset(config.data, tokenizer, tokenizer_function=tokenizer_function)
 
+    # print(dataset_module['train_dataset'][0])
+    # exit()
+
     accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
     teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
