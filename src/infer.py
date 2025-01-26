@@ -3,6 +3,7 @@ import json
 import yaml
 import argparse
 import re
+import numpy as np
 
 from tqdm import tqdm
 from accelerate import Accelerator
@@ -209,6 +210,11 @@ def main():
             metric = acc(extract_number(response), extract_number(answer))
             metrics.append(metric)
             print(metric)
+
+    with open('./results/metrics.json', 'w') as f:
+        f.write("Mean accuracy:- {}".format(np.mean(metrics)))
+
+    print("Mean accuracy:- {}".format(np.mean(metrics)))
 
 if __name__ == "__main__":
     main()
