@@ -158,7 +158,7 @@ def main():
 
         text = tokenizer.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
 
-        return {"text": text}, answer
+        return {"text": text, 'answer': answer}
 
     # Preprocess and tokenize the dataset
     print("Preprocessing and tokenizing dataset...")
@@ -170,18 +170,20 @@ def main():
 
     dataloader = DataLoader(
         dataset,
-        batch_size=4,
+        batch_size=config.distill.sft_config.per_device_eval_batch_size,
         shuffle=False,  # Shuffle the dataset for each epoch
         num_workers=8,  # Use multiprocessing
         pin_memory=True,  # Speeds up data transfer to GPU
-        prefetch_factor=2  # Number of batches prefetched by each worker
+        prefetch_factor=4  # Number of batches prefetched by each worker
     )
-
+    metrics = []
     for data in tqdm(dataloader):
         print(data)
-        model_inputs, answer = sharegpt_format(data)
-        print(model_inputs)
-        model_inputs = tokenizer(model_inputs[config.data.text_field], truncation=True,
+
+        model_inputs = data[config.data.text_field]
+        answers = data['answer'][0]["content"]
+
+        model_inputs = tokenizer(model_inputs, truncation=True,
                   padding=True, return_tensors="pt").to(device)
 
         print(model_inputs['attention_mask'].shape)
@@ -196,16 +198,17 @@ def main():
         generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in
                          zip(model_inputs.input_ids, generated_ids)]
 
-        response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        responses = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        for response, answer in zip(responses, answers):
+            print("Response", extract_number(response))
+            print("Answer", extract_number(answer))
 
-        print("Response", extract_number(response))
-        print("Answer", extract_number(answer[0]['content']))
+            append_to_jsonl({'resonse': response, 'answer': answer},
+                            './results/infer_finetuned.jsonl')
 
-        append_to_jsonl({'resonse': response, 'answer': answer[0]['content']},
-                        './results/infer_finetuned.jsonl')
-        metric = acc(extract_number(response), extract_number(answer[0]['content']))
-        print(metric)
-
+            metric = acc(extract_number(response), extract_number(answer))
+            metrics.append(metric)
+            print(metric)
 
 if __name__ == "__main__":
     main()
