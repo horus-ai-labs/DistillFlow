@@ -220,7 +220,7 @@ def main():
             # print(response)
             # print(answer)
             append_to_jsonl({'resonse': response, 'answer': answer,
-                             'extracted_response': extract_pretrained(response),
+                             'extracted_response': extract_answer_pretrained(response),
                              'extracted_answer': extract_number(answer)},
                             results_path)
 
