@@ -167,21 +167,29 @@ def main():
     original_columns = dataset.column_names
     # dataset = dataset.map(sharegpt_format, remove_columns=original_columns)
 
-    for data in tqdm(dataset):
+    if device.type == "mps":
+        student_model = student_model.to(device)
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=4,
+        shuffle=False,  # Shuffle the dataset for each epoch
+        num_workers=8,  # Use multiprocessing
+        pin_memory=True,  # Speeds up data transfer to GPU
+        prefetch_factor=2  # Number of batches prefetched by each worker
+    )
+
+    for data in tqdm(dataloader):
         print(data)
-        print("asdnasdnalksndlansdlkasndlkansdlkansdlakndlakndalkdnalksndaslkdnaslkdn")
         model_inputs, answer = sharegpt_format(data)
         print(model_inputs)
         model_inputs = tokenizer(model_inputs[config.data.text_field], truncation=True,
-                  padding=True, return_tensors="pt")
+                  padding=True, return_tensors="pt").to(device)
 
         print(model_inputs['attention_mask'].shape)
         # print(processed[0], processed[1])
         # model_inputs = model_inputs.to(device)
 
-        if device.type == "mps":
-            student_model = student_model.to(device)
-            model_inputs = model_inputs.to(device)
 
         generated_ids = student_model.generate(input_ids = model_inputs.input_ids,
                                                attention_mask = model_inputs.attention_mask,
