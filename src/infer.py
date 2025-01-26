@@ -175,7 +175,7 @@ def main():
                         message.insert(0, {"role": "system", "content": conversation.get('value', '')})
 
         if not any(msg.get('role') == 'system' for msg in message):
-            message.insert(0, {"role": "system", "content": "You are a helpful assistant. Please respond with the line the correct answer is 0, 1, 2 or 3."})
+            message.insert(0, {"role": "system", "content": "You are a helpful assistant."})
 
         text = tokenizer.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
 
