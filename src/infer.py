@@ -75,18 +75,19 @@ def extract_number(text):
         return None
 
 def extract_answer_pretrained(text):
-    match = re.search(r"[ABCD]", text)
+    pattern = r"([ABCD])(?=\))"
 
+    # Define the mapping
+    letter_to_number = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+
+    # Search for the match
+    match = re.search(pattern, text)
+
+    # Return the mapped value if found, otherwise None
     if match:
-        letter_to_number = {
-            'A': 0,
-            'B': 1,
-            'C': 2,
-            'D': 3
-        }
-        return letter_to_number[match.group()]
-
-    return None  # Return None if no matching letter is found
+        letter = match.group(1)
+        return letter_to_number[letter]
+    return None
 
 
 def acc(pred, gt):
