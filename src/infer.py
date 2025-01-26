@@ -158,14 +158,12 @@ def main():
 
         text = tokenizer.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
 
-        # assert len(message) == len(answer)
-
         return {"text": text}, answer
 
     # Preprocess and tokenize the dataset
     print("Preprocessing and tokenizing dataset...")
     original_columns = dataset.column_names
-    # dataset = dataset.map(sharegpt_format, remove_columns=original_columns)
+    dataset = dataset.map(sharegpt_format, remove_columns=original_columns)
 
     if device.type == "mps":
         student_model = student_model.to(device)
