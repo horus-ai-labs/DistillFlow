@@ -1,6 +1,6 @@
 student_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-  model_name_or_path: '/home/aayushgupta/checkpoint-3000/'
+  model_name_or_path: 'Qwen/Qwen2-1.5B-Instruct'
   flash_attn: sdpa
   use_unsloth: false
   output_attentions: false
@@ -58,5 +58,3 @@ distill:
   resume_from_checkpoint: null
   temperature: 2.0
   alpha: 0.5
-
-infer:

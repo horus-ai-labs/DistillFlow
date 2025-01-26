@@ -64,12 +64,30 @@ def extract_number(text):
     pattern = r"(?i)the correct answer is\s+(\d+):"
 
     match = re.search(pattern, text)
+    # print(match, text)
+    # exit()
+
     if match:
         extracted_number = match.group(1)
         # print(f"Extracted number: {extracted_number}")
         return int(extracted_number)
     else:
         return None
+
+def extract_answer_pretrained(text):
+    match = re.search(r"[ABCD]", text)
+
+    if match:
+        letter_to_number = {
+            'A': 0,
+            'B': 1,
+            'C': 2,
+            'D': 3
+        }
+        return letter_to_number[match.group()]
+
+    return None  # Return None if no matching letter is found
+
 
 def acc(pred, gt):
     if pred == gt:
@@ -199,11 +217,14 @@ def main():
 
         responses = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
         for response, answer in zip(responses, answers):
-
-            append_to_jsonl({'resonse': response, 'answer': answer},
+            # print(response)
+            # print(answer)
+            append_to_jsonl({'resonse': response, 'answer': answer,
+                             'extracted_response': extract_pretrained(response),
+                             'extracted_answer': extract_number(answer)},
                             results_path)
 
-            metric = acc(extract_number(response), extract_number(answer))
+            metric = acc(extract_number(response), extract_answer_pretrained(answer))
             metrics.append(metric)
 
     metrics_path = os.path.join(config.distill.sft_config.output_dir, 'metrics.txt')
