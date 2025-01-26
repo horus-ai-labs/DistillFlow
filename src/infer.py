@@ -179,7 +179,7 @@ def main():
         prefetch_factor=4  # Number of batches prefetched by each worker
     )
     metrics = []
-    os.amkedirs(config.distill.sft_config.output_dir, exist_ok=True)
+    os.makedirs(config.distill.sft_config.output_dir, exist_ok=True)
     results_path = os.path.join(config.distill.sft_config.output_dir, 'infer_finetuned.jsonl')
     for data in tqdm(dataloader):
 
