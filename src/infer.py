@@ -225,7 +225,7 @@ def main():
                              'extracted_answer': extract_number(answer)},
                             results_path)
 
-            metric = acc(extract_number(response), extract_answer_pretrained(answer))
+            metric = acc(extract_answer_pretrained(response), extract_number(answer))
             metrics.append(metric)
 
     metrics_path = os.path.join(config.distill.sft_config.output_dir, 'metrics.txt')
