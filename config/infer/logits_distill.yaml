@@ -1,6 +1,6 @@
 student_model:
 #  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
-  model_name_or_path: '/Users/aayushgupta/dev/model_checkpoints/distill/qwen/parent_7B_student_1.5B/mmlu/'
+  model_name_or_path: '/home/aayushgupta/checkpoint-3000/'
   flash_attn: sdpa
   use_unsloth: false
   output_attentions: false
