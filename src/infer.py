@@ -1,3 +1,4 @@
+import os
 from typing import Dict, Any
 import json
 import yaml
@@ -178,18 +179,15 @@ def main():
         prefetch_factor=4  # Number of batches prefetched by each worker
     )
     metrics = []
+    os.amkedirs(config.distill.sft_config.output_dir, exist_ok=True)
+    results_path = os.path.join(config.distill.sft_config.output_dir, 'infer_finetuned.jsonl')
     for data in tqdm(dataloader):
-        print(data)
 
         model_inputs = data[config.data.text_field]
         answers = data['answer'][0]["content"]
 
         model_inputs = tokenizer(model_inputs, truncation=True,
                   padding=True, return_tensors="pt").to(device)
-
-        print(model_inputs['attention_mask'].shape)
-        # print(processed[0], processed[1])
-        # model_inputs = model_inputs.to(device)
 
 
         generated_ids = student_model.generate(input_ids = model_inputs.input_ids,
@@ -201,17 +199,15 @@ def main():
 
         responses = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
         for response, answer in zip(responses, answers):
-            print("Response", extract_number(response))
-            print("Answer", extract_number(answer))
 
             append_to_jsonl({'resonse': response, 'answer': answer},
-                            './results/infer_finetuned.jsonl')
+                            results_path)
 
             metric = acc(extract_number(response), extract_number(answer))
             metrics.append(metric)
-            print(metric)
 
-    with open('./results/metrics.json', 'w') as f:
+    metrics_path = os.path.join(config.distill.sft_config.output_dir, 'metrics.txt')
+    with open(metrics_path, 'w') as f:
         f.write("Mean accuracy:- {}".format(np.mean(metrics)))
 
     print("Mean accuracy:- {}".format(np.mean(metrics)))

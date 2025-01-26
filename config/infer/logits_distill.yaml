@@ -35,7 +35,6 @@ tokenizer:
   template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
 distill:
-#  output_file: './results/infer_finetuned.jsonl'
   type: logits
   max_seq_length: 2048
   sft_config:
@@ -59,3 +58,5 @@ distill:
   resume_from_checkpoint: null
   temperature: 2.0
   alpha: 0.5
+
+infer:
