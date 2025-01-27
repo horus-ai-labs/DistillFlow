@@ -125,31 +125,6 @@ def main():
     tokenizer = load_tokenizer(config.student_model, template=tokenizer_template, padding_side="left")
     tokenizer.eos_token = "<|im_end|>"
 
-    def tokenizer_function(examples):
-        return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
-                         padding="max_length", return_tensors="pt")
-
-    # dataset = get_dataset(data_args=config.data, tokenizer=tokenizer, tokenizer_function=None)
-    #
-    # # def fetch(examples: Dict[str, Any]) -> Dict[str, Any]:
-    # #     question = None
-    # #     for prompt in examples["_prompt"]:
-    # #         if prompt["role"] == "user":
-    # #             question = prompt
-    # #
-    # #     response = None
-    # #     for prompt in examples["_response"]:
-    # #         if prompt["role"] == "assistant":
-    # #             response = prompt["content"]
-    # #
-    # #     if question is None or response is None:
-    # #         return {}
-    # #
-    # #     return {"question": question, "response": response}
-    #
-    # # dataset = dataset["train_dataset"].map(fetch, batched=False, remove_columns=dataset["train_dataset"].column_names)
-    # print(dataset['train_dataset'][0])
-
     dataset =  load_dataset(
             path=config.data.train_datasets[0].path,
             split=config.data.train_datasets[0].split,
@@ -211,21 +186,21 @@ def main():
 
         generated_ids = student_model.generate(input_ids = model_inputs.input_ids,
                                                attention_mask = model_inputs.attention_mask,
-                                               max_new_tokens=25, do_sample=False)
+                                               max_new_tokens=128, do_sample=False)
 
         generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in
                          zip(model_inputs.input_ids, generated_ids)]
 
         responses = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
         for response, answer in zip(responses, answers):
-            # print(response)
-            # print(answer)
+            from utils.parser import gsm8k_parser
+
             append_to_jsonl({'resonse': response, 'answer': answer,
-                             'extracted_response': extract_answer_pretrained(response),
-                             'extracted_answer': extract_number(answer)},
+                             'extracted_response': gsm8k_parser(response),
+                             'extracted_answer': gsm8k_parser(answer)},
                             results_path)
 
-            metric = acc(extract_answer_pretrained(response), extract_number(answer))
+            metric = acc(gsm8k_parser(response), gsm8k_parser(answer))
             metrics.append(metric)
 
     metrics_path = os.path.join(config.distill.sft_config.output_dir, 'metrics.txt')
