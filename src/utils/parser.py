@@ -5,6 +5,7 @@ def gsm8k_parser(text):
 
     try:
         match = "".join(re.findall(pattern, text)[-1])
+        match = match.strip("$.").replace(",", "")
     except IndexError:
         print(f"IndexError: {text}")
         return 0
