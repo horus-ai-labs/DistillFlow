@@ -301,7 +301,8 @@ def main():
     formatted_date = now.strftime("%Y%m%d%H%M")
 
     # Create a unique instance name using timestamp
-    instance_name = f"{machine_type}-{formatted_date}-{current_user}"
+    identifier = "finetune1"
+    instance_name = f"{machine_type}-{formatted_date}-{identifier}"
     try:
         with open(args.script_path, 'r') as f:
             startup_script = f.read()
