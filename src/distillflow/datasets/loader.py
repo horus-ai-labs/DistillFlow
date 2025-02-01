@@ -74,7 +74,6 @@ def _load_single_dataset(
             )
 
         if data_args.text_field is not None:
-            print("GIESFJNKSJDNKJSDNc")
             dataset = dataset.map(partial(to_text, data_args.text_field, tokenizer), batched=False, remove_columns=dataset.column_names,
                                   load_from_cache_file=dataset_args.load_from_cache_file)
         return dataset
