@@ -23,12 +23,12 @@ data:
   seed: 42
   text_field: "text"
   train_datasets:
-    - path: horus-ai-labs/gsm8k-wikisql
+    - path: horus-ai-labs/wikisql-sharegpt
       split: train
       template:
         name: sharegpt
   eval_datasets:
-    - path: horus-ai-labs/gsm8k-wikisql
+    - path: horus-ai-labs/wikisql-sharegpt
       split: validation
       template:
         name: sharegpt
