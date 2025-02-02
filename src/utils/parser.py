@@ -24,4 +24,8 @@ def wikisql_parser(text):
         pattern_alt = r'SELECT[\s\S]*?;'  # Alternative pattern to capture inline SQL queries
         matches = re.findall(pattern_alt, text, re.IGNORECASE)
 
+    if not matches:
+        patter_alt2 = r'"(SELECT .*? FROM .*? WHERE .*?)\sAND'
+        matches = re.search(pattern, text, re.DOTALL)
+
     return matches[0] if matches else ""
