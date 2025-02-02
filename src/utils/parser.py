@@ -16,3 +16,8 @@ def gsm8k_parser(text):
         return 0
     else:
         return match
+
+def wikisql_parser(text):
+    pattern = r'(?<=```sql\n)([\s\S]*?)(?=\n```)'  # Regex pattern to capture SQL queries
+    matches = "".join(re.findall(pattern, text)[-1])
+    return matches

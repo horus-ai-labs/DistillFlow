@@ -212,11 +212,11 @@ def main():
         for response, answer in zip(responses, answers):
 
             append_to_jsonl({'resonse': response, 'answer': answer,
-                             'extracted_response': response,
-                             'extracted_answer': answer},
+                             'extracted_response': wikisql_parser(response),
+                             'extracted_answer': wikisql_parser(answer)},
                             results_path)
 
-            metric = get_rouge(response, answer)
+            metric = get_rouge(wikisql_parser(response), wikisql_parser(answer))
 
             metrics.append(metric)
 
