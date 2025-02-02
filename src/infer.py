@@ -214,10 +214,10 @@ def main():
 
             append_to_jsonl({'resonse': response, 'answer': answer,
                              'extracted_response': wikisql_parser(response),
-                             'extracted_answer': wikisql_parser(answer)},
+                             'extracted_answer': answer},
                             results_path)
 
-            metric = get_rouge(wikisql_parser(response), wikisql_parser(answer))
+            metric = get_rouge(wikisql_parser(response), answer)
 
             metrics.append(metric)
 
