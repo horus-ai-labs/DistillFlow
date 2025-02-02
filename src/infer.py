@@ -199,7 +199,9 @@ def main():
 
         generated_ids = student_model.generate(input_ids = model_inputs.input_ids,
                                                attention_mask = model_inputs.attention_mask,
-                                               max_new_tokens=config.distill.max_seq_length, do_sample=False)
+                                               max_new_tokens=config.distill.max_seq_length,
+                                               eos_token_id=tokenizer.eos_token_id,
+                                               do_sample=True)
 
         generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in
                          zip(model_inputs.input_ids, generated_ids)]
