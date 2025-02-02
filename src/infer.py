@@ -25,6 +25,8 @@ from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.trainer.logits_distillation import LogitsTrainer
 
+from utils.metrics import get_rouge
+
 from accelerate.utils import DeepSpeedPlugin, get_active_deepspeed_plugin, is_deepspeed_available
 
 def load_config(config_path):
@@ -41,6 +43,17 @@ def parse_args():
         required=True,
         help="Path to the YAML configuration file."
     )
+    parser.add_argument(
+        "--no-compute-metrics",
+        action="store_true" # default set to false and metrics will be computed.
+    )
+
+    parser.add_argument(
+        "--task-type",
+        choices=["mmlu", "gsm8k", "wikisql"],
+        default = "wikisql"
+    )
+
     return parser.parse_args()
 
 def append_to_jsonl(data, filename: str) -> None:
@@ -192,15 +205,17 @@ def main():
                          zip(model_inputs.input_ids, generated_ids)]
 
         responses = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        from utils.parser import gsm8k_parser
+
         for response, answer in zip(responses, answers):
-            from utils.parser import gsm8k_parser
 
             append_to_jsonl({'resonse': response, 'answer': answer,
-                             'extracted_response': gsm8k_parser(response),
-                             'extracted_answer': gsm8k_parser(answer)},
+                             'extracted_response': response,
+                             'extracted_answer': answer},
                             results_path)
 
-            metric = acc(gsm8k_parser(response), gsm8k_parser(answer))
+            metric = get_rouge(response, answer)
+
             metrics.append(metric)
 
     metrics_path = os.path.join(config.distill.sft_config.output_dir, 'metrics.txt')
