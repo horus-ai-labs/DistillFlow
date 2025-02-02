@@ -26,6 +26,7 @@ from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.trainer.logits_distillation import LogitsTrainer
 
 from utils.metrics import get_rouge
+from utils.parser import wikisql_parser
 
 from accelerate.utils import DeepSpeedPlugin, get_active_deepspeed_plugin, is_deepspeed_available
 
