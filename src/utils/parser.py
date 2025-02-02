@@ -26,6 +26,6 @@ def wikisql_parser(text):
 
     if not matches:
         patter_alt2 = r'"(SELECT .*? FROM .*? WHERE .*?)\sAND'
-        matches = re.search(pattern, text, re.DOTALL)
+        matches = re.findall(patter_alt2, text, re.DOTALL)
 
     return matches[0] if matches else ""
