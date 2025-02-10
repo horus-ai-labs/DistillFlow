@@ -21,12 +21,12 @@ def tokenizer_init_kwargs(model_args: ModelArgs) -> Dict[str, Any]:
         "token": model_args.hf_hub_token,
     }
 
-def load_tokenizer(model_args: ModelArgs) -> PreTrainedTokenizer:
+def load_tokenizer(model_args: ModelArgs, template: str = None, padding_side='right') -> PreTrainedTokenizer:
     try:
         tokenizer = AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
             split_special_tokens=model_args.split_special_tokens,
-            padding_side="right",
+            padding_side=padding_side,
             **tokenizer_init_kwargs(model_args),
         )
     except Exception as e:

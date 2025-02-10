@@ -1,0 +1,63 @@
+student_model:
+#  model_name_or_path: HuggingFaceTB/SmolLM2-135M-Instruct
+  model_name_or_path: Qwen/Qwen2-1.5B-Instruct
+  flash_attn: sdpa
+  use_unsloth: false
+  output_attentions: false
+  enable_liger_kernel: true
+  deepspeed_config: './deepspeed/zero0.json'
+
+teacher_model:
+#  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
+  model_name_or_path: Qwen/Qwen2-7B-Instruct
+  flash_attn: sdpa
+  use_unsloth: false
+  output_attentions: false
+  enable_liger_kernel: true
+  deepspeed_config: './deepspeed/zero0.json'
+#  quantization_args:
+#    quantization_bit: 8
+#    quantization_method: gptq
+
+data:
+  seed: 42
+  text_field: "text"
+  train_datasets:
+    - path: horus-ai-labs/wikisql-sharegpt
+      split: train
+      template:
+        name: sharegpt
+  eval_datasets:
+    - path: horus-ai-labs/wikisql-sharegpt
+      split: validation
+      template:
+        name: sharegpt
+  streaming: false
+
+tokenizer:
+  template: "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
+distill:
+  type: logits
+  max_seq_length: 2048
+  sft_config:
+    output_dir: './results'
+    num_train_epochs: 2
+    per_device_train_batch_size: 2
+    per_device_eval_batch_size: 8
+    gradient_accumulation_steps: 8
+    eval_strategy: steps
+    eval_steps: 250
+    save_steps: 250
+    logging_steps: 1
+    learning_rate: 2.0e-5
+    weight_decay: 0.05
+    warmup_ratio: 0.1
+    lr_scheduler_type: 'cosine'
+    fp16: false
+    bf16: true
+    max_grad_norm: 1.0
+    remove_unused_columns: false
+  resume_from_checkpoint: null
+  temperature: 2.0
+  alpha: 0.5
