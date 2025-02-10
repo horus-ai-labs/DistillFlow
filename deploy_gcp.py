@@ -58,7 +58,7 @@ def create_instance(project_id, zone, instance_name, machine_type, gpu_count,
         initialize_params=compute_v1.AttachedDiskInitializeParams(
             disk_size_gb=boot_disk_size,
             disk_type=f"zones/{zone}/diskTypes/pd-standard",
-            source_image=f"projects/{project_id}/global/images/py12-cu124-20250119"
+            source_image=f"projects/distillation-101/global/images/py12-cu124-20250119"
         ),
     )
 
@@ -301,7 +301,8 @@ def main():
     formatted_date = now.strftime("%Y%m%d%H%M")
 
     # Create a unique instance name using timestamp
-    instance_name = f"{machine_type}-{formatted_date}-{current_user}"
+    identifier = "distill2"
+    instance_name = f"{machine_type}-{formatted_date}-{identifier}"
     try:
         with open(args.script_path, 'r') as f:
             startup_script = f.read()
