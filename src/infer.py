@@ -78,12 +78,9 @@ def extract_number(text):
     pattern = r"(?i)the correct answer is\s+(\d+):"
 
     match = re.search(pattern, text)
-    # print(match, text)
-    # exit()
 
     if match:
         extracted_number = match.group(1)
-        # print(f"Extracted number: {extracted_number}")
         return int(extracted_number)
     else:
         return None
