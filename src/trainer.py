@@ -11,6 +11,7 @@ from distillflow.common import get_current_device
 from distillflow.config.validator import print_validation_error
 from distillflow.datasets.loader import get_dataset
 from distillflow.model.loader import load_model
+from distillflow.model.tokenizer import load_tokenizer
 from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.trainer.logits_distillation import LogitsTrainer
@@ -56,15 +57,6 @@ def main():
 
     # Handle device
     device = get_current_device()
-
-    # Load tokenizer and dataset
-    tokenizer_template = config.tokenizer.template
-    tokenizer = load_tokenizer(config.student_model, template=tokenizer_template)
-
-    def tokenizer_function(examples):
-        return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
-                                 padding="max_length", return_tensors="pt")
-
 
     accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
