@@ -2,7 +2,7 @@ from functools import partial
 from typing import TypedDict, Optional, Dict, Any, List
 
 import numpy as np
-from datasets import DatasetDict, load_dataset, Dataset, concatenate_datasets, interleave_datasets
+from datasets import DatasetDict, load_dataset, Dataset, concatenate_datasets, interleave_datasets, IterableDataset
 from transformers import PreTrainedTokenizer
 
 from .args import DatasetArgs, DataArgs
@@ -74,7 +74,11 @@ def _load_single_dataset(
             )
 
         if data_args.text_field is not None:
-            dataset = dataset.map(partial(to_text, data_args.text_field, tokenizer), batched=False, remove_columns=dataset.column_names,
+            if isinstance(dataset, IterableDataset):
+                dataset = dataset.map(partial(to_text, data_args.text_field, tokenizer), batched=False,
+                                      remove_columns=dataset.column_names)
+            else:
+                dataset = dataset.map(partial(to_text, data_args.text_field, tokenizer), batched=False, remove_columns=dataset.column_names,
                                   load_from_cache_file=dataset_args.load_from_cache_file)
         return dataset
 

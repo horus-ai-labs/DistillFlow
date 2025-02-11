@@ -11,7 +11,6 @@ from distillflow.common import get_current_device
 from distillflow.config.validator import print_validation_error
 from distillflow.datasets.loader import get_dataset
 from distillflow.model.loader import load_model
-from distillflow.model.tokenizer import load_tokenizer
 from distillflow.trainer.attention_distillation import AttentionTrainer
 from distillflow.trainer.layers_distillation import LayersTrainer
 from distillflow.trainer.logits_distillation import LogitsTrainer
