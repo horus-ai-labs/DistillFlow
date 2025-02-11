@@ -57,15 +57,6 @@ def main():
     # Handle device
     device = get_current_device()
 
-    # Load tokenizer and dataset
-    tokenizer_template = config.tokenizer.template
-    tokenizer = load_tokenizer(config.student_model, template=tokenizer_template)
-
-    def tokenizer_function(examples):
-        return tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
-                                 padding="max_length", return_tensors="pt")
-
-
     accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
     teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
