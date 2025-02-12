@@ -1,6 +1,6 @@
 # file to convert datasets to ShareGPT format.
 import argparse
-from datasets import load_dataset, DatasetDict
+from datasets import load_dataset, DatasetDict, Dataset
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -9,6 +9,7 @@ def parse_arguments():
     parser.add_argument('--parser-type', type=str, choices=['gsm8k', 'mmlu', 'wikisql'])
     parser.add_argument('--split', type=str, default='auxiliary_train,validation,test', help='dataset split')
     parser.add_argument('--parsed-dataset-name', type=str, required=True, help='')
+    parser.add_argument('--filter-gsm8k-only', action='store_true', help='Enable filtering for source=gsm8k')
 
     return parser.parse_args()
 
@@ -34,6 +35,21 @@ def format_map_mmlu(item):
 def format_map_gsm8k(item):
     question = item.get("question", "").strip()
     answer = item.get("answer", "").strip()  # Correct answer key (e.g., "A", "B", etc.)
+
+    # ShareGPT format
+    conversation = {
+        "conversations": [
+            {"from": "human",
+             "value": f"Question: {question}"},
+            {"from": "gpt", "value": answer},
+        ],
+    }
+    return conversation
+
+def format_map_gsm8k_for_deepseek(item):
+    question = item.get("problem", "").strip()
+    answer = item.get("solution", "").strip()  # Correct answer key (e.g., "A", "B", etc.)
+    # reannotated_assistant_content- add it to the final map(check how in shareGPT), print one row before uploading to huggingface
 
     # ShareGPT format
     conversation = {
@@ -80,6 +96,11 @@ def get_parser(parser_type):
         exit()
 
 
+def filter_dataset(dataset: Dataset) -> Dataset:
+    """Filter dataset to only keep rows where source == 'gsm8k'"""
+    return dataset.filter(lambda example: example.get("source", "") == "gsm8k")
+
+
 # Load the dataset
 def main(args):
     combined_dataset = DatasetDict()
@@ -87,6 +108,10 @@ def main(args):
     for split in args.split.split(','):
     #multiple choice type of datasets.
         dataset = load_dataset(args.dataset, args.subset_name, split=split)
+
+        if args.filter_gsm8k_only:
+            dataset = filter_dataset(dataset)  # Apply filtering if flag is set
+
         dataset = dataset.map(parser, remove_columns=dataset.column_names)
         combined_dataset[split] = dataset
 

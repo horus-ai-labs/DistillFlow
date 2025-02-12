@@ -17,6 +17,8 @@ from distillflow.trainer.logits_distillation import LogitsTrainer
 
 from accelerate.utils import DeepSpeedPlugin
 
+from src.distillflow.trainer.fine_tuning import FineTuning
+
 
 def load_config(config_path):
     """Load YAML configuration."""
@@ -82,7 +84,8 @@ def main():
     trainer_class_mapping = {
         "logits": LogitsTrainer,
         "layers": LayersTrainer,
-        "attention": AttentionTrainer
+        "attention": AttentionTrainer,
+        "fine-tune": FineTuning
     }
     trainer = trainer_class_mapping[config.distill.type](
         accelerator=accelerator,
