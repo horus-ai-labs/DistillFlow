@@ -61,7 +61,7 @@ def main():
 
     accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
-    teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
+    teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config) if config.teacher_model else None
     deepspeed_plugins = {"student": student_plugin, "teacher": teacher_plugin}
 
     if device.type != "mps":
@@ -71,7 +71,7 @@ def main():
     # Load student model
     student_model, student_tokenizer = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student', is_trainable=True)
 
-    teacher_model, teacher_tokenizer = prepare_model(config.teacher_model, accelerator=accelerator, accelerator_state='teacher', is_trainable=False)
+    teacher_model, teacher_tokenizer = prepare_model(config.teacher_model, accelerator=accelerator, accelerator_state='teacher', is_trainable=False) if config.teacher_model else None, None
 
     # Load dataset
     def tokenizer_function(examples):

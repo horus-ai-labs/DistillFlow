@@ -9,7 +9,8 @@ def parse_arguments():
     parser.add_argument('--parser-type', type=str, choices=['gsm8k', 'mmlu', 'wikisql'])
     parser.add_argument('--split', type=str, default='auxiliary_train,validation,test', help='dataset split')
     parser.add_argument('--parsed-dataset-name', type=str, required=True, help='')
-    parser.add_argument('--filter-gsm8k-only', action='store_true', help='Enable filtering for source=gsm8k')
+    parser.add_argument('--filter-gsm8k-only', type=bool, help='Enable filtering for source=gsm8k')
+    parser.add_argument('--reasoning', type=bool, help='Is Reasoning enabled')
 
     return parser.parse_args()
 
@@ -32,6 +33,7 @@ def format_map_mmlu(item):
     }
     return conversation
 
+
 def format_map_gsm8k(item):
     question = item.get("question", "").strip()
     answer = item.get("answer", "").strip()  # Correct answer key (e.g., "A", "B", etc.)
@@ -46,21 +48,24 @@ def format_map_gsm8k(item):
     }
     return conversation
 
-def format_map_gsm8k_for_deepseek(item):
-    question = item.get("problem", "").strip()
-    answer = item.get("solution", "").strip()  # Correct answer key (e.g., "A", "B", etc.)
-    # reannotated_assistant_content- add it to the final map(check how in shareGPT), print one row before uploading to huggingface
+def format_map_gsm8k_reasoning(item):
+    reannotated_messages = item.get("reannotated_messages", [])
+    sharegpt_messages = []
+
+    for message in reannotated_messages:
+        sharegpt_message = {}
+        if message["role"] == "assistant":
+            sharegpt_message["from"] = "gpt"
+            sharegpt_message["value"] = message["content"]
+
+        if message["role"] == "user":
+            sharegpt_message["from"] = "human"
+            sharegpt_message["value"] = message["content"]
+
+        sharegpt_messages.append(sharegpt_message)
 
     # ShareGPT format
-    conversation = {
-        "conversations": [
-            {"from": "human",
-             "value": f"Question: {question}"},
-            {"from": "gpt", "value": answer},
-        ],
-    }
-    return conversation
-
+    return {"conversations": sharegpt_messages}
 
 def format_wikisql(item):
     table_columns = ", ".join(item["table"]["header"])  # Extract table schema
@@ -83,8 +88,10 @@ def format_wikisql(item):
     return conversation
 
 
-def get_parser(parser_type):
+def get_parser(parser_type, reasoning: bool):
     if parser_type == 'gsm8k':
+        if reasoning:
+            return format_map_gsm8k_reasoning
         return format_map_gsm8k
     elif parser_type == 'mmlu':
         return format_map_mmlu
@@ -103,8 +110,9 @@ def filter_dataset(dataset: Dataset) -> Dataset:
 
 # Load the dataset
 def main(args):
+    print(args)
     combined_dataset = DatasetDict()
-    parser = get_parser(args.parser_type)
+    parser = get_parser(args.parser_type, args.reasoning)
     for split in args.split.split(','):
     #multiple choice type of datasets.
         dataset = load_dataset(args.dataset, args.subset_name, split=split)

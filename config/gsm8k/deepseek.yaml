@@ -2,7 +2,7 @@ student_model:
   model_name_or_path: deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
   flash_attn: fa2
   use_unsloth: false
-  output_attentions: False
+  output_attentions: false
   enable_liger_kernel: true
   deepspeed_config: './deepspeed/zero0.json'
 
@@ -10,7 +10,7 @@ data:
   seed: 42
   text_field: "text"
   train_datasets:
-    - path: horus-ai-labs/gsm8k_r1_distill_sft
+    - path: horus-ai-labs/R1-Dstill-SFT-gsm8k
       template:
         name: sharegpt
       num_samples: 100
