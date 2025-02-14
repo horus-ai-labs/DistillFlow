@@ -17,7 +17,7 @@ from distillflow.trainer.logits_distillation import LogitsTrainer
 
 from accelerate.utils import DeepSpeedPlugin
 
-from src.distillflow.trainer.fine_tuning import FineTuning
+from distillflow.trainer.fine_tuning import FineTuning
 
 
 def load_config(config_path):
