@@ -34,9 +34,9 @@
       "total_num_steps": 2
     }
   },
-  "gradient_accumulation_steps": "auto",
+  "gradient_accumulation_steps": 8,
   "gradient_clipping": "auto",
-  "train_batch_size": "auto",
-  "train_micro_batch_size_per_gpu": "auto",
+  "train_batch_size": 32,
+  "train_micro_batch_size_per_gpu": 1,
   "wall_clock_breakdown": false
 }
