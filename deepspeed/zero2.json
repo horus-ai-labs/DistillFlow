@@ -1,6 +1,10 @@
 {
   "zero_optimization": {
     "stage": 2,
+    "offload_optimizer": {
+      "device": "cpu"
+    },
+    "contiguous_gradients": true,
     "overlap_comm": true
   },
   "bf16": {
@@ -15,7 +19,7 @@
     "hysteresis": 2,
     "min_loss_scale": 1
   },
-  "optimizer": {
+    "optimizer": {
     "type": "AdamW",
     "params": {
       "lr": 2e-5,
@@ -30,10 +34,9 @@
       "total_num_steps": 2
     }
   },
-  "gradient_accumulation_steps": 8,
+  "gradient_accumulation_steps": "auto",
   "gradient_clipping": "auto",
-  "train_batch_size": 32,
-  "train_micro_batch_size_per_gpu": 1,
-  "wall_clock_breakdown": false,
-  "zero_allow_untested_optimizer": true
+  "train_batch_size": "auto",
+  "train_micro_batch_size_per_gpu": "auto",
+  "wall_clock_breakdown": false
 }
