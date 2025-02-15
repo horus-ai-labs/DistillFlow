@@ -4,7 +4,7 @@ student_model:
   use_unsloth: false
   output_attentions: false
   enable_liger_kernel: true
-  deepspeed_config: './deepspeed/zero0.json'
+  deepspeed_config: './deepspeed/zero1.json'
 
 data:
   seed: 42
