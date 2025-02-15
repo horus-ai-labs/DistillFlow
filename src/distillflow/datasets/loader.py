@@ -87,10 +87,6 @@ def to_text(field_name, tokenizer: PreTrainedTokenizer, example: Dict[str, Any])
     prompt = example["_prompt"]
     response = example["_response"]
     message = system + prompt + response
-
-    print("Final sysytem prompt")
-    print(message)
-    exit()
     return {field_name: tokenizer.apply_chat_template(message, tokenize=False, add_generation_prompt=True)}
 
 def split_dataset(dataset: Dataset, data_args: DataArgs, seed: int) -> DatasetDict:
