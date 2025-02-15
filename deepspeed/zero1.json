@@ -28,8 +28,8 @@
     "params": {
       "warmup_num_steps": 1000,
       "total_num_steps": 10000000
-    },
-
+    }
+  },
   "gradient_accumulation_steps": 8,
   "gradient_clipping": "auto",
   "train_batch_size": 32,
