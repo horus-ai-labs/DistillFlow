@@ -62,7 +62,11 @@ def main():
     accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
     teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config) if config.teacher_model else None
-    deepspeed_plugins = {"student": student_plugin, "teacher": teacher_plugin}
+
+    if teacher_plugin:
+        deepspeed_plugins = {"student": student_plugin, "teacher": teacher_plugin}
+    else:
+        deepspeed_plugins = {"student": student_plugin}
 
     if device.type != "mps":
         accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
