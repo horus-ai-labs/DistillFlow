@@ -6,16 +6,6 @@ student_model:
   enable_liger_kernel: true
   deepspeed_config: './deepspeed/zero0.json'
 
-teacher_model:
-#  model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
-  model_name_or_path: Qwen/Qwen2-1.5B-Instruct
-  flash_attn: sdpa
-  use_unsloth: false
-  output_attentions: false
-  enable_liger_kernel: true
-  deepspeed_config: './deepspeed/zero0.json'
-
-
 data:
   seed: 42
   text_field: "text"
@@ -29,7 +19,7 @@ data:
 
 distill:
   type: fine-tune
-  max_seq_length: 1024
+  max_seq_length: 512 # P95 tokens in GSK8k dataset are 338.
   resume_from_checkpoint: null
   temperature: 2.0
   alpha: 0.5

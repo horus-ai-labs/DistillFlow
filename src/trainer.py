@@ -75,6 +75,8 @@ def main():
 
     # Load dataset
     def tokenizer_function(examples):
+        # print(examples[config.data.text_field])
+        # exit()
         return student_tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
                                  padding="max_length", return_tensors="pt")
 
