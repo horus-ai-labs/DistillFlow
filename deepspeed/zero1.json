@@ -26,8 +26,8 @@
   "scheduler": {
     "type": "WarmupCosineLR",
     "params": {
-      "warmup_num_steps": 1000,
-      "total_num_steps": 10000000
+      "warmup_num_steps": 1,
+      "total_num_steps": 2
     }
   },
   "gradient_accumulation_steps": 8,
