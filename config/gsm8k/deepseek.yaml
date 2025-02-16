@@ -4,6 +4,8 @@ student_model:
   use_unsloth: false
   output_attentions: false
   enable_liger_kernel: true
+  finetuning_args:
+    finetuning_type: lora
   deepspeed_config: './deepspeed/zero2.json'
 
 data:
