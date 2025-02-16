@@ -34,6 +34,7 @@ def load_tokenizer(model_args: ModelArgs, template: str = None, padding_side='ri
 
     if model_args.new_special_tokens is not None:
         print(model_args.new_special_tokens)
+        exit()
         num_added_tokens = tokenizer.add_special_tokens(
             dict(additional_special_tokens=model_args.new_special_tokens),
             replace_additional_special_tokens=False,
