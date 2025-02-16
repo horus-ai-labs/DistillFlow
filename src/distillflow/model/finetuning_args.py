@@ -107,7 +107,7 @@ class FinetuningArgs(FreezeArgs, LoraArgs, BaseModel):
     """
 
     finetuning_type: Literal["lora", "freeze", "full"] = Field(
-        default="full",
+        default="lora",
         description="Which fine-tuning method to use."
     )
     use_llama_pro: bool = Field(
