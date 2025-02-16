@@ -9,7 +9,8 @@ def parse_arguments():
     parser.add_argument('--parser-type', type=str, choices=['gsm8k', 'mmlu', 'wikisql'])
     parser.add_argument('--split', type=str, default='auxiliary_train,validation,test', help='dataset split')
     parser.add_argument('--parsed-dataset-name', type=str, required=True, help='')
-    parser.add_argument('--filter-gsm8k-only', type=bool, help='Enable filtering for source=gsm8k')
+    parser.add_argument('--filter-dataset-key', type=str, default=None, help='pass a key to filter dataset on.')
+    parser.add_argument('--filter-dataset-column', type=str, default=None, help='pass a column to filter dataset on.')
     parser.add_argument('--reasoning', type=bool, help='Is Reasoning enabled')
 
     return parser.parse_args()
@@ -103,9 +104,9 @@ def get_parser(parser_type, reasoning: bool):
         exit()
 
 
-def filter_dataset(dataset: Dataset) -> Dataset:
+def filter_dataset(dataset: Dataset, filter_dataset_key, filter_dataset_column) -> Dataset:
     """Filter dataset to only keep rows where source == 'gsm8k'"""
-    return dataset.filter(lambda example: example.get("source", "") == "gsm8k")
+    return dataset.filter(lambda example: example.get(filter_dataset_column, "") == filter_dataset_key)
 
 
 # Load the dataset
@@ -117,8 +118,9 @@ def main(args):
     #multiple choice type of datasets.
         dataset = load_dataset(args.dataset, args.subset_name, split=split)
 
-        if args.filter_gsm8k_only:
-            dataset = filter_dataset(dataset)  # Apply filtering if flag is set
+        if args.filter_dataset_key and args.filter_dataset_column:
+            # Used "source" for filter_dataset_column and "gsm8k" for filter_dataset_key to filter dataset: ServiceNow-AI/R1-Distill-SFT
+            dataset = filter_dataset(dataset, args.filter_dataset_key, args.filter_dataset_column)  # Apply filtering if flag is set
 
         dataset = dataset.map(parser, remove_columns=dataset.column_names)
         combined_dataset[split] = dataset
