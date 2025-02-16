@@ -27,13 +27,6 @@
       "eps": 1e-8
     }
   },
-  "scheduler": {
-    "type": "WarmupCosineLR",
-    "params": {
-      "warmup_num_steps": 1000,
-      "total_num_steps": "auto"
-    }
-  },
   "gradient_accumulation_steps": 8,
   "gradient_clipping": "auto",
   "train_batch_size": 32,
