@@ -32,7 +32,7 @@ distill:
     gradient_accumulation_steps: 8
     eval_strategy: steps
     eval_steps: 100
-    save_steps: 2000
+    save_steps: 100
     logging_steps: 1
     learning_rate: 2.0e-5
 #    weight_decay: 0.05
