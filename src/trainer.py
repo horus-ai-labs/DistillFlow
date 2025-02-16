@@ -72,6 +72,7 @@ def main():
         accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
 
 
+
     # Load student model
     student_model, student_tokenizer = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student', is_trainable=True)
 
