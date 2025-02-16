@@ -4,7 +4,7 @@ student_model:
   use_unsloth: false
   output_attentions: false
   enable_liger_kernel: true
-  new_special_tokens: '<think>', '</think>'
+  new_special_tokens: "<think>,</think>"
 #  finetuning_args:
 #    finetuning_type: lora
   deepspeed_config: './deepspeed/zero2.json'
