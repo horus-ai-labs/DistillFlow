@@ -11,7 +11,8 @@ class Config(BaseModel):
         description="Details about the student model that we want to train"
     )
     teacher_model: ModelArgs = Field(
-        description="Details about the teacher model"
+        description="Details about the teacher model",
+        default=None
     )
     data: DataArgs = Field(
         description="The datasets that we want to choose to run the training"

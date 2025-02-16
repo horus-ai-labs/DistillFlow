@@ -7,7 +7,7 @@ class DistillArgs(BaseModel):
     sft_config: SFTConfig = Field(
         description="SFT Config, with hyperparameters required for training"
     )
-    type: Literal["logits", "layers", "attention"] = Field(
+    type: Literal["logits", "layers", "attention", "fine-tune"] = Field(
         default="logits",
         description="Type of distillation to perform on the given student model with the given dataset (default: logits)"
     )

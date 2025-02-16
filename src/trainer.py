@@ -17,6 +17,8 @@ from distillflow.trainer.logits_distillation import LogitsTrainer
 
 from accelerate.utils import DeepSpeedPlugin
 
+from distillflow.trainer.fine_tuning import FineTuning
+
 
 def load_config(config_path):
     """Load YAML configuration."""
@@ -59,20 +61,27 @@ def main():
 
     accelerator = None
     student_plugin = DeepSpeedPlugin(hf_ds_config=config.student_model.deepspeed_config)
-    teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config)
-    deepspeed_plugins = {"student": student_plugin, "teacher": teacher_plugin}
+    teacher_plugin = DeepSpeedPlugin(hf_ds_config=config.teacher_model.deepspeed_config) if config.teacher_model else None
+
+    if teacher_plugin:
+        deepspeed_plugins = {"student": student_plugin, "teacher": teacher_plugin}
+    else:
+        deepspeed_plugins = {"student": student_plugin}
 
     if device.type != "mps":
         accelerator = Accelerator(deepspeed_plugins=deepspeed_plugins)
 
 
+
     # Load student model
     student_model, student_tokenizer = prepare_model(config.student_model, accelerator=accelerator, accelerator_state='student', is_trainable=True)
 
-    teacher_model, teacher_tokenizer = prepare_model(config.teacher_model, accelerator=accelerator, accelerator_state='teacher', is_trainable=False)
+    teacher_model, teacher_tokenizer = prepare_model(config.teacher_model, accelerator=accelerator, accelerator_state='teacher', is_trainable=False) if config.teacher_model else None, None
 
     # Load dataset
     def tokenizer_function(examples):
+        # print(examples[config.data.text_field])
+        # exit()
         return student_tokenizer(examples[config.data.text_field], truncation=True, max_length=config.distill.max_seq_length,
                                  padding="max_length", return_tensors="pt")
 
@@ -82,7 +91,8 @@ def main():
     trainer_class_mapping = {
         "logits": LogitsTrainer,
         "layers": LayersTrainer,
-        "attention": AttentionTrainer
+        "attention": AttentionTrainer,
+        "fine-tune": FineTuning
     }
     trainer = trainer_class_mapping[config.distill.type](
         accelerator=accelerator,

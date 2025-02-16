@@ -1,6 +1,6 @@
 # file to convert datasets to ShareGPT format.
 import argparse
-from datasets import load_dataset, DatasetDict
+from datasets import load_dataset, DatasetDict, Dataset
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -9,6 +9,9 @@ def parse_arguments():
     parser.add_argument('--parser-type', type=str, choices=['gsm8k', 'mmlu', 'wikisql'])
     parser.add_argument('--split', type=str, default='auxiliary_train,validation,test', help='dataset split')
     parser.add_argument('--parsed-dataset-name', type=str, required=True, help='')
+    parser.add_argument('--filter-dataset-key', type=str, default=None, help='pass a key to filter dataset on.')
+    parser.add_argument('--filter-dataset-column', type=str, default=None, help='pass a column to filter dataset on.')
+    parser.add_argument('--reasoning', type=bool, help='Is Reasoning enabled')
 
     return parser.parse_args()
 
@@ -31,6 +34,7 @@ def format_map_mmlu(item):
     }
     return conversation
 
+
 def format_map_gsm8k(item):
     question = item.get("question", "").strip()
     answer = item.get("answer", "").strip()  # Correct answer key (e.g., "A", "B", etc.)
@@ -45,6 +49,24 @@ def format_map_gsm8k(item):
     }
     return conversation
 
+def format_map_gsm8k_reasoning(item):
+    reannotated_messages = item.get("reannotated_messages", [])
+    sharegpt_messages = []
+
+    for message in reannotated_messages:
+        sharegpt_message = {}
+        if message["role"] == "assistant":
+            sharegpt_message["from"] = "gpt"
+            sharegpt_message["value"] = message["content"]
+
+        if message["role"] == "user":
+            sharegpt_message["from"] = "human"
+            sharegpt_message["value"] = message["content"]
+
+        sharegpt_messages.append(sharegpt_message)
+
+    # ShareGPT format
+    return {"conversations": sharegpt_messages}
 
 def format_wikisql(item):
     table_columns = ", ".join(item["table"]["header"])  # Extract table schema
@@ -67,8 +89,10 @@ def format_wikisql(item):
     return conversation
 
 
-def get_parser(parser_type):
+def get_parser(parser_type, reasoning: bool):
     if parser_type == 'gsm8k':
+        if reasoning:
+            return format_map_gsm8k_reasoning
         return format_map_gsm8k
     elif parser_type == 'mmlu':
         return format_map_mmlu
@@ -80,13 +104,24 @@ def get_parser(parser_type):
         exit()
 
 
+def filter_dataset(dataset: Dataset, filter_dataset_key, filter_dataset_column) -> Dataset:
+    """Filter dataset to only keep rows where source == 'gsm8k'"""
+    return dataset.filter(lambda example: example.get(filter_dataset_column, "") == filter_dataset_key)
+
+
 # Load the dataset
 def main(args):
+    print(args)
     combined_dataset = DatasetDict()
-    parser = get_parser(args.parser_type)
+    parser = get_parser(args.parser_type, args.reasoning)
     for split in args.split.split(','):
     #multiple choice type of datasets.
         dataset = load_dataset(args.dataset, args.subset_name, split=split)
+
+        if args.filter_dataset_key and args.filter_dataset_column:
+            # Used "source" for filter_dataset_column and "gsm8k" for filter_dataset_key to filter dataset: ServiceNow-AI/R1-Distill-SFT
+            dataset = filter_dataset(dataset, args.filter_dataset_key, args.filter_dataset_column)  # Apply filtering if flag is set
+
         dataset = dataset.map(parser, remove_columns=dataset.column_names)
         combined_dataset[split] = dataset
 
