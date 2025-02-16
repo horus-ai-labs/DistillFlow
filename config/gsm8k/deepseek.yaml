@@ -33,9 +33,9 @@ distill:
     save_steps: 2000
     logging_steps: 1
     learning_rate: 2.0e-5
-    weight_decay: 0.05
-    warmup_ratio: 0.1
-    lr_scheduler_type: 'cosine'
+#    weight_decay: 0.05
+#    warmup_ratio: 0.1
+#    lr_scheduler_type: 'cosine'
     fp16: False
     bf16: True
     max_grad_norm: 1.0
