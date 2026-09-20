@@ -39,10 +39,11 @@ class LayersTrainer(SFTTrainer):
         if isinstance(train_dataset, IterableDataset) and distill_args.sft_config.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
 
+        distill_args.sft_config.max_length = distill_args.max_seq_length
+        distill_args.sft_config.dataset_text_field = distill_args.dataset_text_field
+
         super().__init__(model=model, args=distill_args.sft_config, train_dataset=train_dataset,
-                         eval_dataset=eval_dataset, tokenizer=tokenizer,
-                         max_seq_length=distill_args.max_seq_length,
-                         dataset_text_field=distill_args.dataset_text_field)
+                         eval_dataset=eval_dataset, processing_class=tokenizer)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         model_inputs = {

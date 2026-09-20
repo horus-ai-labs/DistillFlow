@@ -4,7 +4,6 @@ from contextlib import nullcontext
 from types import MethodType
 from typing import Dict, Any
 
-from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 from transformers import PreTrainedTokenizer, AutoConfig, PreTrainedModel, \
     PretrainedConfig, AutoModelForCausalLM, is_torch_npu_available
 from transformers.integrations import is_deepspeed_zero3_enabled, is_deepspeed_available
@@ -238,6 +237,7 @@ def load_model(
 
     quantization_args = model_args.quantization_args
     if quantization_args.quantization_method == QuantizationMethod.GPTQ.value:
+        from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
         quantize_config = BaseQuantizeConfig(
             bits=quantization_args.quantization_bit,
             group_size=128,       # Group size (optional, can be None)
