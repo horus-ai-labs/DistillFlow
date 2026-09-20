@@ -1,15 +1,24 @@
 .. image:: https://s3.us-west-2.amazonaws.com/www.horusailabs.com/distillflow.png
     :target: https://horusailabs.com/
     :align: center
-========
 
-.. raw:: html
+DistillFlow
+===========
 
-   <div align="center">
-     <a href="LICENSE"><img src="https://img.shields.io/github/license/horus-ai-labs/DistillFlow"/></a>
-     <a href="https://github.com/horus-ai-labs/DistillFlow/discussions"><img src="https://img.shields.io/badge/status-beta-red.svg"/></a>
-     <a href="https://www.python.org/downloads/release/python-3120/"><img src="https://img.shields.io/badge/python-3.12-green.svg"/></a>
-   </div>
+|license| |pypi| |beta| |python|
+
+.. |license| image:: https://img.shields.io/github/license/horus-ai-labs/DistillFlow
+    :target: https://github.com/horus-ai-labs/DistillFlow/blob/main/LICENSE
+    :alt: License
+.. |pypi| image:: https://img.shields.io/pypi/v/distillflow.svg
+    :target: https://pypi.org/project/distillflow/
+    :alt: PyPI version
+.. |beta| image:: https://img.shields.io/badge/status-beta-red.svg
+    :target: https://github.com/horus-ai-labs/DistillFlow/discussions
+    :alt: Status
+.. |python| image:: https://img.shields.io/badge/python-3.12-green.svg
+    :target: https://www.python.org/downloads/release/python-3120/
+    :alt: Python
 
 Overview
 ========
@@ -30,11 +39,9 @@ DistillFlow lets you build a fully configurable pipeline, to help with your Dist
 Once the data is available, choose a teacher model, and the student model and your dataset
 and finally run the distillation.
 
-.. raw:: html
-
-   <p align="center">
-     <img src="https://s3.us-west-2.amazonaws.com/www.horusailabs.com/distillflow_arch.png" height="600">
-   </p>
+.. image:: https://s3.us-west-2.amazonaws.com/www.horusailabs.com/distillflow_arch.png
+    :align: center
+    :height: 600
 
 Key Features
 ============
@@ -117,7 +124,7 @@ Run the command:
     accelerate launch src/trainer.py --config <your_config_path>
 
 Acknowledgement
-=======
+===============
 The repo structure is inspired by `LLamaFactory <https://github.com/hiyouga/LLaMA-Factory>`_.
 The distillation training techniques are inspired by the works of `DistillKit <https://github.com/arcee-ai/DistillKit>`_.
 

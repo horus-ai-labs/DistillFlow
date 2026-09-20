@@ -24,7 +24,7 @@ class LogitsTrainer(SFTTrainer):
         train_dataset = dataset_module["train_dataset"]
         eval_dataset = dataset_module["eval_dataset"]
         self.device = get_current_device()
-        if self.device.type == 'mps':
+        if self.device.type == 'mps' and not distill_args.sft_config.use_cpu:
             # Explicitly place the models on device since accelerate prepare does not work on MPS.
             self.teacher_model = self.teacher_model.to(self.device)
             model = model.to(self.device)
@@ -42,10 +42,11 @@ class LogitsTrainer(SFTTrainer):
         if isinstance(train_dataset, IterableDataset) and distill_args.sft_config.max_steps == -1:
             raise ValueError("max steps should be specified when using dataset with streaming mode enabled.")
 
+        distill_args.sft_config.max_length = distill_args.max_seq_length
+        distill_args.sft_config.dataset_text_field = distill_args.dataset_text_field
+
         super().__init__(model=model, args=distill_args.sft_config, train_dataset=train_dataset,
-                         eval_dataset=eval_dataset, tokenizer=tokenizer,
-                         max_seq_length=distill_args.max_seq_length,
-                         dataset_text_field=distill_args.dataset_text_field)
+                         eval_dataset=eval_dataset, processing_class=tokenizer)
 
     def pad_logits(self, student_logits, teacher_logits):
         student_size, teacher_size = student_logits.size(-1), teacher_logits.size(-1)
